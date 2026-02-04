@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SquigWord vF</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d0f;
+            --card: #161619;
+            --input: #1e1e22;
+            --text: #ffffff;
+            --dim: #9ca3af;
+            --muted: #6b7280;
+            --accent: #a855f7;
+            --glow: rgba(168, 85, 247, 0.2);
+            --border: rgba(255, 255, 255, 0.08);
+        }
+        .light-mode {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --input: #f0f0f2;
+            --text: #1a1a1a;
+            --dim: #4b5563;
+            --muted: #6b7280;
+            --accent: #7c3aed;
+            --glow: rgba(124, 58, 237, 0.15);
+            --border: rgba(0, 0, 0, 0.08);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { overflow-x: hidden; }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .app { max-width: 880px; width: 100%; margin: 0 auto; padding: 12px 16px; display: flex; flex-direction: column; min-height: 100vh; }
+        .canvas-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 6px; margin-bottom: 10px; position: relative; flex-shrink: 0; }
+        canvas { width: 100%; display: block; border-radius: 6px; cursor: pointer; }
+        .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; flex-shrink: 0; }
+        .field { margin-bottom: 14px; }
+        .field:last-child { margin-bottom: 0; }
+        .field-label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .field-row { display: flex; gap: 16px; margin-bottom: 14px; }
+        .flex-grow { flex: 1; min-width: 0; }
+        .input-group { display: flex; gap: 6px; align-items: center; }
+        input[type="text"], input[type="number"] { background: var(--input); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 16px; font-family: inherit; color: var(--text); outline: none; transition: border 0.15s; }
+        input:focus { border-color: var(--accent); }
+        input[type="text"] { flex: 1; min-width: 0; }
+        input[type="number"] { width: 100px; font-family: 'JetBrains Mono', monospace; text-align: center; }
+        .btn-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .btn { padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer; border: 1px solid var(--border); background: var(--input); color: var(--dim); transition: all 0.12s; white-space: nowrap; }
+        .btn:hover { background: var(--bg); color: var(--text); }
+        .btn.active { background: rgba(168, 85, 247, 0.35); border-color: rgba(168, 85, 247, 0.5); color: #e9d5ff; }
+        .light-mode .btn.active { background: rgba(124, 58, 237, 0.2); border-color: rgba(124, 58, 237, 0.4); color: #6d28d9; }
+        .icon-btn { width: 38px; height: 38px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.15s; }
+        .icon-btn:hover { background: var(--glow); border-color: var(--accent); color: var(--text); }
+        .traits { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 14px; color: var(--muted); padding-top: 8px; }
+        .trait-val { font-weight: 600; color: var(--text); margin-right: 2px; }
+        .color-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; vertical-align: middle; }
+        .action-row { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .history-section { margin-top: 12px; padding: 10px; background: #000000; border-radius: 10px; flex-shrink: 0; overflow: visible; text-align: center; }
+        .light-mode .history-section { background: #ffffff; }
+        .history-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; overflow: visible; }
+        .history-grid.collapsed .history-card:nth-child(n+7) { display: none; }
+        .history-card { position: relative; background: transparent; border: none; border-radius: 6px; overflow: visible; cursor: pointer; transition: all 0.15s; aspect-ratio: 2.8 / 1; }
+        .history-card:hover { transform: translateY(-2px) scale(1.02); }
+        .history-card img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 6px; }
+        .history-tooltip { position: absolute; top: calc(100% + 6px); right: 0; background: var(--card); color: var(--text); border-radius: 6px; padding: 6px 10px; font-size: 11px; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity 0.12s; z-index: 1000; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .history-card:hover .history-tooltip { opacity: 1; visibility: visible; }
+        .history-toggle-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; margin-top: 6px; background: none; border: none; font-size: 18px; font-weight: 300; color: #666; cursor: pointer; transition: all 0.15s; }
+        .history-toggle-btn:hover { color: #aaa; }
+        .light-mode .history-toggle-btn { color: #999; }
+        .footer { text-align: center; padding: 8px; font-size: 12px; color: var(--muted); flex-shrink: 0; }
+        .speed-control { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+        .speed-control label { font-size: 11px; color: var(--muted); }
+        .speed-slider { width: 80px; height: 4px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
+        .speed-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+        .icon-btn.playing { background: var(--accent); color: white; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="canvas-wrap"><canvas id="canvas" width="860" height="280"></canvas></div>
+        <div class="panel">
+            <div class="field"><label class="field-label">PRESETS</label><div class="btn-row" id="presetBtns"></div></div>
+            <div class="field-row">
+                <div class="field flex-grow"><label class="field-label">TEXT</label><div class="input-group"><input type="text" id="textInput" value="Squiggles" maxlength="20" spellcheck="false"><button class="icon-btn" id="randWordBtn" title="Random word">↻</button></div></div>
+                <div class="field"><label class="field-label">SEED</label><div class="input-group"><input type="number" id="seedInput" value="42"><button class="icon-btn" id="randSeedBtn" title="Random seed">↻</button></div></div>
+            </div>
+            <div class="field"><label class="field-label">TYPE</label><div class="btn-row" id="typeBtns"></div></div>
+            <div class="field"><label class="field-label">FONT</label><div class="btn-row" id="fontBtns"></div></div>
+            <div class="traits" id="traits"></div>
+            <div class="action-row">
+                <button class="icon-btn" id="modeToggle" title="Toggle light/dark">☀</button>
+                <button class="icon-btn" id="animateBtn" title="Animate drawing">▶</button>
+                <div class="speed-control">
+                    <label>Speed</label>
+                    <input type="range" class="speed-slider" id="speedSlider" min="1" max="20" value="10">
+                </div>
+                <button class="icon-btn" id="downloadBtn" title="Download PNG">↓</button>
+                <button class="icon-btn" id="shareBtn" title="Copy link">🔗</button>
+            </div>
+        </div>
+        <div class="history-section" id="historySection" style="display:none;"><div class="history-grid collapsed" id="historyGrid"></div><button class="history-toggle-btn" id="historyToggle" onclick="toggleHistory()">+</button></div>
+        <footer class="footer"><span class="credit">snowfro</span></footer>
+    </div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const state = { text: 'Squiggles', seed: 42, forceType: 'Auto', fontStyle: 'Random', bgIndex: 7, squiggleMode: false, animating: false, animFrame: null, animOffset: 0, history: [], darkMode: true, drawAnimating: false, drawProgress: 0, drawSpeed: 10 };
+
+const BACKGROUNDS = ['#ffffff','#f5f5f5','#e0e0e0','#c0c0c0','#808080','#404040','#202020','#000000'];
+
+// CURSIVE FONT - Entry/Exit points for natural connections
+const FONT_SMOOTH = {
+    'a': { path: [[.1,.6],[.18,.45],[.4,.38],[.65,.48],[.7,.7],[.6,.92],[.38,.98],[.2,.85],[.18,.65],[.3,.5],[.6,.5],[.7,.65],[.75,.88],[.9,.82]], entry: {x:.1,y:.6,angle:55}, exit: {x:.9,y:.82,angle:20}, width:.85 },
+    'b': { path: [[.15,.92],[.18,.5],[.2,.15],[.22,.02],[.2,.25],[.2,.6],[.38,.42],[.65,.45],[.78,.65],[.72,.88],[.48,.98],[.25,.88],[.22,.65],[.45,.5],[.72,.48]], entry: {x:.15,y:.92,angle:85}, exit: {x:.72,y:.48,angle:10}, width:.8 },
+    'c': { path: [[.8,.48],[.55,.38],[.25,.5],[.22,.75],[.38,.95],[.65,.95],[.85,.85]], entry: {x:.8,y:.48,angle:-25}, exit: {x:.85,y:.85,angle:25}, width:.8 },
+    'd': { path: [[.1,.6],[.2,.45],[.42,.38],[.62,.5],[.65,.72],[.55,.92],[.35,.98],[.2,.85],[.22,.6],[.5,.45],[.72,.35],[.75,.1],[.72,.02],[.72,.4],[.72,.75],[.8,.92],[.92,.85]], entry: {x:.1,y:.6,angle:55}, exit: {x:.92,y:.85,angle:18}, width:.9 },
+    'e': { path: [[.18,.68],[.35,.55],[.55,.48],[.75,.55],[.78,.68],[.5,.68],[.22,.72],[.25,.9],[.5,.98],[.78,.9],[.9,.82]], entry: {x:.18,y:.68,angle:60}, exit: {x:.9,y:.82,angle:20}, width:.85 },
+    'f': { path: [[.72,.08],[.5,.02],[.38,.15],[.38,.5],[.38,.85],[.4,1.05],[.5,1.18],[.62,1.1]], crossbar: [[.2,.52],[.6,.52]], entry: {x:.72,y:.08,angle:-50}, exit: {x:.62,y:1.1,angle:-30}, width:.65, descender:true },
+    'g': { path: [[.12,.6],[.22,.45],[.45,.38],[.68,.5],[.7,.72],[.58,.92],[.38,.98],[.22,.85],[.25,.6],[.55,.5],[.7,.58],[.72,.85],[.7,1.15],[.55,1.35],[.35,1.32],[.28,1.15]], entry: {x:.12,y:.6,angle:55}, exit: {x:.28,y:1.15,angle:100}, width:.82, descender:true },
+    'h': { path: [[.12,.92],[.15,.5],[.18,.15],[.2,.02],[.18,.3],[.18,.65],[.22,.88],[.28,.65],[.45,.48],[.68,.52],[.75,.72],[.78,.92],[.9,.85]], entry: {x:.12,y:.92,angle:85}, exit: {x:.9,y:.85,angle:18}, width:.88 },
+    'i': { path: [[.35,.48],[.42,.65],[.48,.85],[.55,.95],[.7,.88]], dot: [.45,.2], entry: {x:.35,y:.48,angle:60}, exit: {x:.7,y:.88,angle:18}, width:.55 },
+    'j': { path: [[.45,.48],[.5,.7],[.52,.95],[.5,1.18],[.38,1.35],[.22,1.28]], dot: [.5,.2], entry: {x:.45,y:.48,angle:65}, exit: {x:.22,y:1.28,angle:150}, width:.5, descender:true },
+    'k': { path: [[.12,.92],[.15,.5],[.18,.15],[.2,.02],[.18,.35],[.18,.7],[.2,.92],[.2,.62],[.5,.42],[.7,.38],[.2,.62],[.55,.82],[.78,.95],[.88,.88]], entry: {x:.12,y:.92,angle:85}, exit: {x:.88,y:.88,angle:15}, width:.85 },
+    'l': { path: [[.3,.92],[.35,.5],[.38,.15],[.4,.02],[.38,.35],[.4,.7],[.45,.92],[.58,.95],[.72,.88]], entry: {x:.3,y:.92,angle:85}, exit: {x:.72,y:.88,angle:15}, width:.6 },
+    'm': { path: [[.05,.92],[.08,.6],[.1,.48],[.1,.7],[.12,.9],[.18,.65],[.32,.48],[.42,.55],[.45,.75],[.45,.9],[.5,.65],[.62,.48],[.75,.55],[.78,.75],[.82,.92],[.92,.85]], entry: {x:.05,y:.92,angle:85}, exit: {x:.92,y:.85,angle:18}, width:1.05 },
+    'n': { path: [[.1,.92],[.12,.6],[.15,.48],[.15,.72],[.18,.9],[.25,.65],[.45,.48],[.65,.55],[.72,.75],[.78,.92],[.9,.85]], entry: {x:.1,y:.92,angle:85}, exit: {x:.9,y:.85,angle:18}, width:.88 },
+    'o': { path: [[.2,.65],[.28,.48],[.5,.42],[.72,.52],[.78,.72],[.7,.92],[.48,.98],[.28,.88],[.22,.68],[.35,.52],[.6,.48],[.78,.55]], entry: {x:.2,y:.65,angle:70}, exit: {x:.78,y:.55,angle:10}, width:.82 },
+    'p': { path: [[.12,.48],[.15,.7],[.18,.95],[.2,1.2],[.22,1.38],[.2,1.1],[.2,.75],[.2,.55],[.4,.42],[.65,.48],[.75,.68],[.68,.9],[.45,.98],[.25,.88],[.2,.7]], entry: {x:.12,y:.48,angle:60}, exit: {x:.2,y:.7,angle:-70}, width:.78, descender:true },
+    'q': { path: [[.15,.62],[.25,.48],[.5,.42],[.7,.55],[.75,.75],[.65,.92],[.42,.98],[.25,.85],[.28,.62],[.55,.5],[.72,.55],[.75,.8],[.78,1.1],[.82,1.3],[.9,1.22]], entry: {x:.15,y:.62,angle:65}, exit: {x:.9,y:1.22,angle:-25}, width:.85, descender:true },
+    'r': { path: [[.12,.92],[.15,.62],[.18,.48],[.18,.72],[.2,.9],[.28,.62],[.48,.45],[.7,.48],[.82,.55]], entry: {x:.12,y:.92,angle:85}, exit: {x:.82,y:.55,angle:8}, width:.75 },
+    's': { path: [[.75,.48],[.5,.4],[.3,.48],[.28,.6],[.45,.68],[.65,.75],[.72,.85],[.58,.98],[.35,.95],[.25,.85],[.55,.88],[.8,.82]], entry: {x:.75,y:.48,angle:-25}, exit: {x:.8,y:.82,angle:15}, width:.78 },
+    't': { path: [[.4,.15],[.42,.45],[.45,.75],[.5,.95],[.65,.95],[.78,.88]], crossbar: [[.22,.48],[.62,.48]], entry: {x:.4,y:.15,angle:70}, exit: {x:.78,y:.88,angle:15}, width:.65 },
+    'u': { path: [[.1,.48],[.12,.7],[.18,.9],[.38,.98],[.6,.9],[.72,.7],[.72,.52],[.72,.72],[.78,.92],[.9,.85]], entry: {x:.1,y:.48,angle:60}, exit: {x:.9,y:.85,angle:18}, width:.88 },
+    'v': { path: [[.1,.48],[.25,.7],[.42,.9],[.5,.98],[.58,.9],[.75,.7],[.9,.5]], entry: {x:.1,y:.48,angle:50}, exit: {x:.9,y:.5,angle:-35}, width:.85 },
+    'w': { path: [[.05,.48],[.15,.75],[.25,.95],[.32,.78],[.42,.55],[.5,.78],[.6,.95],[.7,.75],[.82,.55],[.92,.5]], entry: {x:.05,y:.48,angle:55}, exit: {x:.92,y:.5,angle:-25}, width:1.0 },
+    'x': { path: [[.15,.48],[.35,.65],[.5,.75],[.65,.88],[.82,.95]], path2: [[.82,.48],[.65,.62],[.5,.75],[.35,.88],[.18,.95]], entry: {x:.15,y:.48,angle:45}, exit: {x:.18,y:.95,angle:200}, width:.85 },
+    'y': { path: [[.1,.48],[.28,.72],[.45,.92],[.58,.72],[.72,.52],[.72,.75],[.65,1.0],[.5,1.25],[.32,1.35],[.2,1.22]], entry: {x:.1,y:.48,angle:55}, exit: {x:.2,y:1.22,angle:130}, width:.8, descender:true },
+    'z': { path: [[.2,.48],[.5,.48],[.78,.5],[.5,.72],[.22,.95],[.5,.98],[.82,.92]], entry: {x:.2,y:.48,angle:5}, exit: {x:.82,y:.92,angle:18}, width:.8 },
+    'A': { path: [[.05,.98],[.25,.6],[.42,.25],[.5,.05],[.58,.25],[.75,.6],[.95,.98]], crossbar: [[.25,.65],[.75,.65]], entry: {x:.05,y:.98,angle:70}, exit: {x:.95,y:.98,angle:-70}, width:.95 },
+    'B': { path: [[.1,.98],[.1,.5],[.1,.02],[.5,.02],[.7,.12],[.7,.3],[.5,.42],[.1,.42],[.55,.42],[.75,.55],[.75,.8],[.55,.98],[.1,.98]], entry: {x:.1,y:.98,angle:90}, exit: {x:.1,y:.98,angle:0}, width:.85 },
+    'C': { path: [[.88,.18],[.65,.02],[.35,.02],[.12,.2],[.08,.5],[.12,.8],[.35,.98],[.65,.98],[.88,.82]], entry: {x:.88,y:.18,angle:-60}, exit: {x:.88,y:.82,angle:60}, width:.9 },
+    'D': { path: [[.1,.98],[.1,.5],[.1,.02],[.45,.02],[.75,.2],[.82,.5],[.75,.8],[.45,.98],[.1,.98]], entry: {x:.1,y:.98,angle:90}, exit: {x:.1,y:.98,angle:0}, width:.88 },
+    'E': { path: [[.85,.02],[.4,.02],[.1,.02],[.1,.5],[.6,.5],[.1,.5],[.1,.98],[.4,.98],[.85,.98]], entry: {x:.85,y:.02,angle:180}, exit: {x:.85,y:.98,angle:0}, width:.82 },
+    'F': { path: [[.85,.02],[.4,.02],[.1,.02],[.1,.5],[.6,.5],[.1,.5],[.1,.98]], entry: {x:.85,y:.02,angle:180}, exit: {x:.1,y:.98,angle:-90}, width:.78 },
+    'G': { path: [[.88,.18],[.65,.02],[.35,.02],[.12,.2],[.08,.5],[.12,.8],[.35,.98],[.65,.98],[.88,.78],[.88,.55],[.55,.55]], entry: {x:.88,y:.18,angle:-60}, exit: {x:.55,y:.55,angle:180}, width:.92 },
+    'H': { path: [[.1,.02],[.1,.5],[.1,.98],[.1,.5],[.9,.5],[.9,.02],[.9,.5],[.9,.98]], entry: {x:.1,y:.02,angle:-90}, exit: {x:.9,y:.98,angle:-90}, width:.9 },
+    'I': { path: [[.25,.02],[.5,.02],[.75,.02],[.5,.02],[.5,.5],[.5,.98],[.25,.98],[.5,.98],[.75,.98]], entry: {x:.25,y:.02,angle:0}, exit: {x:.75,y:.98,angle:0}, width:.55 },
+    'J': { path: [[.2,.02],[.5,.02],[.75,.02],[.75,.5],[.75,.8],[.6,.98],[.35,.98],[.15,.85]], entry: {x:.2,y:.02,angle:0}, exit: {x:.15,y:.85,angle:150}, width:.75 },
+    'K': { path: [[.1,.02],[.1,.5],[.1,.98],[.1,.5],[.8,.02],[.1,.5],[.8,.98]], entry: {x:.1,y:.02,angle:-90}, exit: {x:.8,y:.98,angle:-60}, width:.82 },
+    'L': { path: [[.1,.02],[.1,.5],[.1,.98],[.5,.98],[.88,.98]], entry: {x:.1,y:.02,angle:-90}, exit: {x:.88,y:.98,angle:0}, width:.78 },
+    'M': { path: [[.05,.98],[.05,.5],[.05,.02],[.35,.5],[.5,.72],[.65,.5],[.95,.02],[.95,.5],[.95,.98]], entry: {x:.05,y:.98,angle:90}, exit: {x:.95,y:.98,angle:-90}, width:1.05 },
+    'N': { path: [[.1,.98],[.1,.5],[.1,.02],[.5,.5],[.9,.98],[.9,.5],[.9,.02]], entry: {x:.1,y:.98,angle:90}, exit: {x:.9,y:.02,angle:90}, width:.9 },
+    'O': { path: [[.5,.02],[.2,.15],[.08,.5],[.2,.85],[.5,.98],[.8,.85],[.92,.5],[.8,.15],[.5,.02]], entry: {x:.5,y:.02,angle:180}, exit: {x:.5,y:.02,angle:0}, width:.95 },
+    'P': { path: [[.1,.98],[.1,.5],[.1,.02],[.55,.02],[.78,.15],[.78,.35],[.55,.5],[.1,.5]], entry: {x:.1,y:.98,angle:90}, exit: {x:.1,y:.5,angle:0}, width:.8 },
+    'Q': { path: [[.5,.02],[.2,.15],[.08,.5],[.2,.85],[.5,.98],[.8,.85],[.92,.5],[.8,.15],[.5,.02],[.6,.78],[.88,1.05]], entry: {x:.5,y:.02,angle:180}, exit: {x:.88,y:1.05,angle:-45}, width:.95 },
+    'R': { path: [[.1,.98],[.1,.5],[.1,.02],[.55,.02],[.78,.15],[.78,.35],[.55,.5],[.1,.5],[.55,.5],[.85,.98]], entry: {x:.1,y:.98,angle:90}, exit: {x:.85,y:.98,angle:-60}, width:.85 },
+    'S': { path: [[.82,.15],[.6,.02],[.35,.05],[.15,.2],[.18,.38],[.45,.5],[.7,.6],[.82,.78],[.7,.95],[.4,.98],[.15,.88]], entry: {x:.82,y:.15,angle:-70}, exit: {x:.15,y:.88,angle:210}, width:.82 },
+    'T': { path: [[.05,.02],[.5,.02],[.95,.02],[.5,.02],[.5,.5],[.5,.98]], entry: {x:.05,y:.02,angle:0}, exit: {x:.5,y:.98,angle:-90}, width:.88 },
+    'U': { path: [[.1,.02],[.1,.5],[.1,.78],[.25,.95],[.5,.98],[.75,.95],[.9,.78],[.9,.5],[.9,.02]], entry: {x:.1,y:.02,angle:-90}, exit: {x:.9,y:.02,angle:90}, width:.9 },
+    'V': { path: [[.05,.02],[.28,.4],[.5,.98],[.72,.4],[.95,.02]], entry: {x:.05,y:.02,angle:-60}, exit: {x:.95,y:.02,angle:60}, width:.92 },
+    'W': { path: [[.02,.02],[.18,.6],[.3,.98],[.42,.55],[.5,.3],[.58,.55],[.7,.98],[.82,.6],[.98,.02]], entry: {x:.02,y:.02,angle:-70}, exit: {x:.98,y:.02,angle:70}, width:1.1 },
+    'X': { path: [[.1,.02],[.35,.3],[.5,.5],[.65,.7],[.9,.98]], path2: [[.9,.02],[.65,.3],[.5,.5],[.35,.7],[.1,.98]], entry: {x:.1,y:.02,angle:-45}, exit: {x:.1,y:.98,angle:225}, width:.88 },
+    'Y': { path: [[.1,.02],[.3,.25],[.5,.5],[.7,.25],[.9,.02],[.5,.5],[.5,.75],[.5,.98]], entry: {x:.1,y:.02,angle:-55}, exit: {x:.5,y:.98,angle:-90}, width:.88 },
+    'Z': { path: [[.1,.02],[.5,.02],[.9,.02],[.5,.5],[.1,.98],[.5,.98],[.9,.98]], entry: {x:.1,y:.02,angle:0}, exit: {x:.9,y:.98,angle:0}, width:.85 },
+    '0': { path: [[.5,.02],[.22,.18],[.12,.5],[.22,.82],[.5,.98],[.78,.82],[.88,.5],[.78,.18],[.5,.02]], entry: {x:.5,y:.02,angle:180}, exit: {x:.5,y:.02,angle:0}, width:.85 },
+    '1': { path: [[.3,.18],[.5,.02],[.5,.5],[.5,.98],[.3,.98],[.7,.98]], entry: {x:.3,y:.18,angle:45}, exit: {x:.7,y:.98,angle:0}, width:.55 },
+    '2': { path: [[.15,.2],[.35,.02],[.65,.05],[.8,.2],[.7,.42],[.4,.65],[.15,.98],[.85,.98]], entry: {x:.15,y:.2,angle:60}, exit: {x:.85,y:.98,angle:0}, width:.82 },
+    '3': { path: [[.15,.12],[.45,.02],[.75,.15],[.72,.38],[.5,.5],[.75,.62],[.72,.85],[.45,.98],[.15,.88]], entry: {x:.15,y:.12,angle:30}, exit: {x:.15,y:.88,angle:210}, width:.8 },
+    '4': { path: [[.7,.98],[.7,.5],[.7,.02],[.15,.68],[.85,.68]], entry: {x:.7,y:.98,angle:90}, exit: {x:.85,y:.68,angle:0}, width:.82 },
+    '5': { path: [[.8,.02],[.3,.02],[.2,.02],[.18,.28],[.25,.48],[.6,.48],[.8,.62],[.75,.85],[.5,.98],[.2,.88]], entry: {x:.8,y:.02,angle:180}, exit: {x:.2,y:.88,angle:210}, width:.8 },
+    '6': { path: [[.78,.12],[.5,.02],[.22,.18],[.12,.5],[.22,.82],[.5,.98],[.78,.82],[.78,.62],[.5,.48],[.22,.62]], entry: {x:.78,y:.12,angle:-70}, exit: {x:.22,y:.62,angle:135}, width:.82 },
+    '7': { path: [[.15,.02],[.5,.02],[.85,.02],[.55,.5],[.4,.98]], entry: {x:.15,y:.02,angle:0}, exit: {x:.4,y:.98,angle:-80}, width:.78 },
+    '8': { path: [[.5,.5],[.28,.38],[.25,.2],[.4,.05],[.6,.05],[.75,.2],[.72,.38],[.5,.5],[.25,.62],[.2,.8],[.4,.98],[.6,.98],[.8,.8],[.75,.62],[.5,.5]], entry: {x:.5,y:.5,angle:135}, exit: {x:.5,y:.5,angle:-45}, width:.82 },
+    '9': { path: [[.22,.88],[.5,.98],[.78,.82],[.88,.5],[.78,.18],[.5,.02],[.22,.18],[.22,.38],[.5,.52],[.78,.38]], entry: {x:.22,y:.88,angle:70}, exit: {x:.78,y:.38,angle:-45}, width:.82 },
+    ' ': { path: [], entry: {x:0,y:.85,angle:0}, exit: {x:1,y:.85,angle:0}, width:.35 },
+    '.': { path: [[.5,.92],[.5,.98]], entry: {x:.5,y:.92,angle:-90}, exit: {x:.5,y:.98,angle:-90}, width:.3 },
+    ',': { path: [[.5,.88],[.45,.98],[.35,1.12]], entry: {x:.5,y:.88,angle:-60}, exit: {x:.35,y:1.12,angle:210}, width:.3 },
+    '!': { path: [[.5,.02],[.5,.35],[.5,.62]], dot: [.5,.9], entry: {x:.5,y:.02,angle:-90}, exit: {x:.5,y:.62,angle:-90}, width:.35 },
+    '?': { path: [[.2,.15],[.5,.02],[.8,.15],[.78,.35],[.5,.55],[.5,.65]], dot: [.5,.9], entry: {x:.2,y:.15,angle:45}, exit: {x:.5,y:.65,angle:-90}, width:.7 },
+    '-': { path: [[.2,.52],[.8,.52]], entry: {x:.2,y:.52,angle:0}, exit: {x:.8,y:.52,angle:0}, width:.6 },
+    "'": { path: [[.5,.02],[.45,.18]], entry: {x:.5,y:.02,angle:-70}, exit: {x:.45,y:.18,angle:-70}, width:.25 }
+};
+
+// Angular/Square font - blockier paths
+const FONT_ANGULAR = {
+    'a': { path: [[.15,.5],[.15,.98],[.15,.7],[.35,.5],[.65,.5],[.85,.7],[.85,.5],[.85,.98]], entry: {x:.15,y:.5,angle:-90}, exit: {x:.85,y:.98,angle:-90}, width:.85 },
+    'b': { path: [[.15,.02],[.15,.98],[.65,.98],[.85,.78],[.85,.55],[.65,.4],[.15,.5]], entry: {x:.15,y:.02,angle:-90}, exit: {x:.15,y:.5,angle:0}, width:.85 },
+    'c': { path: [[.85,.45],[.35,.45],[.15,.6],[.15,.85],[.35,.98],[.85,.98]], entry: {x:.85,y:.45,angle:180}, exit: {x:.85,y:.98,angle:0}, width:.82 },
+    'd': { path: [[.85,.02],[.85,.98],[.35,.98],[.15,.78],[.15,.55],[.35,.4],[.85,.5]], entry: {x:.85,y:.02,angle:-90}, exit: {x:.85,y:.5,angle:0}, width:.85 },
+    'e': { path: [[.15,.65],[.85,.65],[.85,.5],[.35,.45],[.15,.6],[.15,.85],[.35,.98],[.85,.98]], entry: {x:.15,y:.65,angle:0}, exit: {x:.85,y:.98,angle:0}, width:.85 },
+    'f': { path: [[.7,.08],[.45,.02],[.35,.15],[.35,.98]], crossbar: [[.15,.48],[.55,.48]], entry: {x:.7,y:.08,angle:-135}, exit: {x:.35,y:.98,angle:-90}, width:.6 },
+    'g': { path: [[.85,.55],[.5,.42],[.15,.6],[.15,.85],[.5,.98],[.85,.85],[.85,1.15],[.5,1.35],[.2,1.25]], entry: {x:.85,y:.55,angle:150}, exit: {x:.2,y:1.25,angle:180}, width:.85, descender:true },
+    'h': { path: [[.15,.02],[.15,.98],[.15,.55],[.4,.42],[.85,.55],[.85,.98]], entry: {x:.15,y:.02,angle:-90}, exit: {x:.85,y:.98,angle:-90}, width:.88 },
+    'i': { path: [[.5,.42],[.5,.98]], dot: [.5,.2], entry: {x:.5,y:.42,angle:-90}, exit: {x:.5,y:.98,angle:-90}, width:.4 },
+    'j': { path: [[.55,.42],[.55,1.2],[.25,1.35]], dot: [.55,.2], entry: {x:.55,y:.42,angle:-90}, exit: {x:.25,y:1.35,angle:180}, width:.5, descender:true },
+    'k': { path: [[.15,.02],[.15,.98],[.15,.6],[.7,.4],[.15,.6],[.75,.98]], entry: {x:.15,y:.02,angle:-90}, exit: {x:.75,y:.98,angle:-60}, width:.78 },
+    'l': { path: [[.4,.02],[.4,.9],[.55,.98],[.7,.92]], entry: {x:.4,y:.02,angle:-90}, exit: {x:.7,y:.92,angle:20}, width:.55 },
+    'm': { path: [[.08,.42],[.08,.98],[.08,.55],[.3,.42],[.5,.55],[.5,.98],[.5,.55],[.7,.42],[.92,.55],[.92,.98]], entry: {x:.08,y:.42,angle:-90}, exit: {x:.92,y:.98,angle:-90}, width:1.05 },
+    'n': { path: [[.15,.42],[.15,.98],[.15,.55],[.4,.42],[.85,.55],[.85,.98]], entry: {x:.15,y:.42,angle:-90}, exit: {x:.85,y:.98,angle:-90}, width:.88 },
+    'o': { path: [[.5,.42],[.15,.55],[.15,.85],[.5,.98],[.85,.85],[.85,.55],[.5,.42]], entry: {x:.5,y:.42,angle:180}, exit: {x:.5,y:.42,angle:0}, width:.85 },
+    'p': { path: [[.15,.42],[.15,1.38],[.15,.85],[.15,.55],[.4,.42],[.85,.55],[.85,.85],[.5,.98],[.15,.85]], entry: {x:.15,y:.42,angle:-90}, exit: {x:.15,y:.85,angle:0}, width:.82, descender:true },
+    'q': { path: [[.85,.42],[.85,1.38],[.85,.85],[.85,.55],[.6,.42],[.15,.55],[.15,.85],[.5,.98],[.85,.85]], entry: {x:.85,y:.42,angle:-90}, exit: {x:.85,y:.85,angle:0}, width:.82, descender:true },
+    'r': { path: [[.2,.42],[.2,.98],[.2,.55],[.5,.42],[.85,.48]], entry: {x:.2,y:.42,angle:-90}, exit: {x:.85,y:.48,angle:0}, width:.75 },
+    's': { path: [[.8,.45],[.2,.45],[.2,.65],[.8,.75],[.8,.98],[.2,.98]], entry: {x:.8,y:.45,angle:180}, exit: {x:.2,y:.98,angle:180}, width:.78 },
+    't': { path: [[.4,.12],[.4,.9],[.55,.98],[.7,.92]], crossbar: [[.2,.45],[.6,.45]], entry: {x:.4,y:.12,angle:-90}, exit: {x:.7,y:.92,angle:20}, width:.6 },
+    'u': { path: [[.15,.42],[.15,.85],[.5,.98],[.85,.85],[.85,.42],[.85,.98]], entry: {x:.15,y:.42,angle:-90}, exit: {x:.85,y:.98,angle:-90}, width:.88 },
+    'v': { path: [[.1,.42],[.5,.98],[.9,.42]], entry: {x:.1,y:.42,angle:-60}, exit: {x:.9,y:.42,angle:60}, width:.85 },
+    'w': { path: [[.05,.42],[.25,.98],[.5,.55],[.75,.98],[.95,.42]], entry: {x:.05,y:.42,angle:-70}, exit: {x:.95,y:.42,angle:70}, width:1.0 },
+    'x': { path: [[.15,.42],[.5,.7],[.85,.98]], path2: [[.85,.42],[.5,.7],[.15,.98]], entry: {x:.15,y:.42,angle:-45}, exit: {x:.15,y:.98,angle:225}, width:.85 },
+    'y': { path: [[.15,.42],[.5,.85],[.85,.42]], path2: [[.5,.85],[.35,1.15],[.2,1.35]], entry: {x:.15,y:.42,angle:-60}, exit: {x:.2,y:1.35,angle:-130}, width:.85, descender:true },
+    'z': { path: [[.15,.42],[.85,.42],[.15,.98],[.85,.98]], entry: {x:.15,y:.42,angle:0}, exit: {x:.85,y:.98,angle:0}, width:.8 },
+    'A': { path: [[.05,.98],[.5,.02],[.95,.98],[.7,.6],[.3,.6]], entry: {x:.05,y:.98,angle:70}, exit: {x:.3,y:.6,angle:180}, width:.95 },
+    'B': { path: [[.1,.98],[.1,.02],[.6,.02],[.8,.15],[.8,.35],[.6,.48],[.1,.48],[.65,.48],[.85,.62],[.85,.85],[.6,.98],[.1,.98]], entry: {x:.1,y:.98,angle:90}, exit: {x:.1,y:.98,angle:0}, width:.88 },
+    'C': { path: [[.88,.2],[.6,.02],[.3,.02],[.1,.2],[.1,.8],[.3,.98],[.6,.98],[.88,.8]], entry: {x:.88,y:.2,angle:-120}, exit: {x:.88,y:.8,angle:120}, width:.9 },
+    'D': { path: [[.1,.98],[.1,.02],[.5,.02],[.85,.25],[.85,.75],[.5,.98],[.1,.98]], entry: {x:.1,y:.98,angle:90}, exit: {x:.1,y:.98,angle:0}, width:.88 },
+    'E': { path: [[.85,.02],[.1,.02],[.1,.48],[.65,.48],[.1,.48],[.1,.98],[.85,.98]], entry: {x:.85,y:.02,angle:180}, exit: {x:.85,y:.98,angle:0}, width:.82 },
+    'F': { path: [[.85,.02],[.1,.02],[.1,.48],[.65,.48],[.1,.48],[.1,.98]], entry: {x:.85,y:.02,angle:180}, exit: {x:.1,y:.98,angle:-90}, width:.78 },
+    'G': { path: [[.88,.2],[.6,.02],[.3,.02],[.1,.2],[.1,.8],[.3,.98],[.6,.98],[.88,.75],[.88,.55],[.5,.55]], entry: {x:.88,y:.2,angle:-120}, exit: {x:.5,y:.55,angle:180}, width:.92 },
+    'H': { path: [[.1,.02],[.1,.98],[.1,.5],[.9,.5],[.9,.02],[.9,.98]], entry: {x:.1,y:.02,angle:-90}, exit: {x:.9,y:.98,angle:-90}, width:.9 },
+    'I': { path: [[.2,.02],[.8,.02],[.5,.02],[.5,.98],[.2,.98],[.8,.98]], entry: {x:.2,y:.02,angle:0}, exit: {x:.8,y:.98,angle:0}, width:.55 },
+    'J': { path: [[.2,.02],[.75,.02],[.75,.75],[.55,.98],[.25,.98],[.1,.8]], entry: {x:.2,y:.02,angle:0}, exit: {x:.1,y:.8,angle:-135}, width:.75 },
+    'K': { path: [[.1,.02],[.1,.98],[.1,.5],[.85,.02],[.1,.5],[.85,.98]], entry: {x:.1,y:.02,angle:-90}, exit: {x:.85,y:.98,angle:-60}, width:.85 },
+    'L': { path: [[.1,.02],[.1,.98],[.85,.98]], entry: {x:.1,y:.02,angle:-90}, exit: {x:.85,y:.98,angle:0}, width:.78 },
+    'M': { path: [[.05,.98],[.05,.02],[.5,.55],[.95,.02],[.95,.98]], entry: {x:.05,y:.98,angle:90}, exit: {x:.95,y:.98,angle:-90}, width:1.05 },
+    'N': { path: [[.1,.98],[.1,.02],[.9,.98],[.9,.02]], entry: {x:.1,y:.98,angle:90}, exit: {x:.9,y:.02,angle:90}, width:.9 },
+    'O': { path: [[.5,.02],[.1,.2],[.1,.8],[.5,.98],[.9,.8],[.9,.2],[.5,.02]], entry: {x:.5,y:.02,angle:180}, exit: {x:.5,y:.02,angle:0}, width:.95 },
+    'P': { path: [[.1,.98],[.1,.02],[.6,.02],[.85,.18],[.85,.38],[.6,.5],[.1,.5]], entry: {x:.1,y:.98,angle:90}, exit: {x:.1,y:.5,angle:0}, width:.82 },
+    'Q': { path: [[.5,.02],[.1,.2],[.1,.8],[.5,.98],[.9,.8],[.9,.2],[.5,.02],[.6,.75],[.95,1.05]], entry: {x:.5,y:.02,angle:180}, exit: {x:.95,y:1.05,angle:-45}, width:.95 },
+    'R': { path: [[.1,.98],[.1,.02],[.6,.02],[.85,.18],[.85,.38],[.6,.5],[.1,.5],[.6,.5],[.88,.98]], entry: {x:.1,y:.98,angle:90}, exit: {x:.88,y:.98,angle:-60}, width:.88 },
+    'S': { path: [[.85,.15],[.55,.02],[.25,.08],[.1,.25],[.15,.42],[.5,.5],[.85,.58],[.9,.75],[.75,.95],[.45,.98],[.15,.88]], entry: {x:.85,y:.15,angle:-120}, exit: {x:.15,y:.88,angle:-135}, width:.85 },
+    'T': { path: [[.05,.02],[.95,.02],[.5,.02],[.5,.98]], entry: {x:.05,y:.02,angle:0}, exit: {x:.5,y:.98,angle:-90}, width:.9 },
+    'U': { path: [[.1,.02],[.1,.75],[.3,.98],[.7,.98],[.9,.75],[.9,.02]], entry: {x:.1,y:.02,angle:-90}, exit: {x:.9,y:.02,angle:90}, width:.9 },
+    'V': { path: [[.05,.02],[.5,.98],[.95,.02]], entry: {x:.05,y:.02,angle:-70}, exit: {x:.95,y:.02,angle:70}, width:.92 },
+    'W': { path: [[.02,.02],[.25,.98],[.5,.4],[.75,.98],[.98,.02]], entry: {x:.02,y:.02,angle:-75}, exit: {x:.98,y:.02,angle:75}, width:1.1 },
+    'X': { path: [[.1,.02],[.5,.5],[.9,.98]], path2: [[.9,.02],[.5,.5],[.1,.98]], entry: {x:.1,y:.02,angle:-45}, exit: {x:.1,y:.98,angle:225}, width:.88 },
+    'Y': { path: [[.1,.02],[.5,.5],[.9,.02],[.5,.5],[.5,.98]], entry: {x:.1,y:.02,angle:-55}, exit: {x:.5,y:.98,angle:-90}, width:.88 },
+    'Z': { path: [[.1,.02],[.9,.02],[.1,.98],[.9,.98]], entry: {x:.1,y:.02,angle:0}, exit: {x:.9,y:.98,angle:0}, width:.85 },
+    '0': { path: [[.5,.02],[.15,.2],[.15,.8],[.5,.98],[.85,.8],[.85,.2],[.5,.02]], entry: {x:.5,y:.02,angle:180}, exit: {x:.5,y:.02,angle:0}, width:.85 },
+    '1': { path: [[.3,.15],[.5,.02],[.5,.98],[.25,.98],[.75,.98]], entry: {x:.3,y:.15,angle:45}, exit: {x:.75,y:.98,angle:0}, width:.55 },
+    '2': { path: [[.15,.15],[.15,.02],[.85,.02],[.85,.35],[.15,.98],[.85,.98]], entry: {x:.15,y:.15,angle:90}, exit: {x:.85,y:.98,angle:0}, width:.82 },
+    '3': { path: [[.15,.1],[.85,.1],[.85,.45],[.4,.5],[.85,.55],[.85,.9],[.15,.9]], entry: {x:.15,y:.1,angle:0}, exit: {x:.15,y:.9,angle:180}, width:.8 },
+    '4': { path: [[.7,.98],[.7,.02],[.15,.65],[.9,.65]], entry: {x:.7,y:.98,angle:90}, exit: {x:.9,y:.65,angle:0}, width:.82 },
+    '5': { path: [[.85,.02],[.15,.02],[.15,.45],[.7,.45],[.85,.65],[.85,.85],[.55,.98],[.15,.88]], entry: {x:.85,y:.02,angle:180}, exit: {x:.15,y:.88,angle:-135}, width:.82 },
+    '6': { path: [[.85,.1],[.15,.1],[.15,.9],[.85,.9],[.85,.55],[.15,.55]], entry: {x:.85,y:.1,angle:180}, exit: {x:.15,y:.55,angle:180}, width:.82 },
+    '7': { path: [[.15,.02],[.85,.02],[.35,.98]], entry: {x:.15,y:.02,angle:0}, exit: {x:.35,y:.98,angle:-75}, width:.78 },
+    '8': { path: [[.5,.02],[.15,.15],[.15,.4],[.5,.5],[.85,.4],[.85,.15],[.5,.02],[.5,.5],[.15,.6],[.15,.85],[.5,.98],[.85,.85],[.85,.6],[.5,.5]], entry: {x:.5,y:.02,angle:180}, exit: {x:.5,y:.5,angle:-45}, width:.82 },
+    '9': { path: [[.15,.9],[.85,.9],[.85,.1],[.15,.1],[.15,.45],[.85,.45]], entry: {x:.15,y:.9,angle:0}, exit: {x:.85,y:.45,angle:0}, width:.82 },
+    ' ': { path: [], entry: {x:0,y:.85,angle:0}, exit: {x:1,y:.85,angle:0}, width:.35 },
+    '.': { path: [[.5,.9],[.5,.98]], entry: {x:.5,y:.9,angle:-90}, exit: {x:.5,y:.98,angle:-90}, width:.3 },
+    ',': { path: [[.5,.88],[.4,1.1]], entry: {x:.5,y:.88,angle:-90}, exit: {x:.4,y:1.1,angle:-120}, width:.3 },
+    '!': { path: [[.5,.02],[.5,.62]], dot: [.5,.9], entry: {x:.5,y:.02,angle:-90}, exit: {x:.5,y:.62,angle:-90}, width:.35 },
+    '?': { path: [[.2,.1],[.8,.1],[.8,.35],[.5,.55],[.5,.65]], dot: [.5,.9], entry: {x:.2,y:.1,angle:0}, exit: {x:.5,y:.65,angle:-90}, width:.7 },
+    '-': { path: [[.2,.5],[.8,.5]], entry: {x:.2,y:.5,angle:0}, exit: {x:.8,y:.5,angle:0}, width:.6 },
+    "'": { path: [[.5,.02],[.5,.2]], entry: {x:.5,y:.02,angle:-90}, exit: {x:.5,y:.2,angle:-90}, width:.25 }
+};
+
+const FONT_WAVY = FONT_SMOOTH;
+const FONTS = { 'Smooth': FONT_SMOOTH, 'Square': FONT_ANGULAR, 'Wavy': FONT_WAVY };
+const FONT_NAMES = ['Smooth', 'Square', 'Wavy'];
+
+function generateConnector(exitInfo, entryInfo, exitX, entryX, letterHeight) {
+    const gap = entryX - exitX;
+    if (gap <= 0) return [];
+    const startY = exitInfo.y * letterHeight, endY = entryInfo.y * letterHeight;
+    // For small gaps, just a simple straight or gentle connection
+    if (gap < letterHeight * 0.15) {
+        return [[exitX, startY], [entryX, endY]];
+    }
+    // For medium gaps, gentle midpoint
+    const midX = exitX + gap * 0.5;
+    const midY = Math.min(startY, endY) - gap * 0.1;
+    return [[exitX, startY], [midX, midY], [entryX, endY]];
+}
+
+function generateHash(seed) { const pairs = []; let s = (Math.abs(seed) ^ 0xDEADBEEF) >>> 0; for (let i = 0; i < 32; i++) { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s = s >>> 0; pairs.push(s % 256); } return pairs; }
+
+function extractTraits(decPairs) {
+    const styleVal = decPairs[31];
+    let type = styleVal >= 251 ? 'Pipe' : styleVal >= 239 ? 'Bold' : styleVal >= 219 ? 'Ribbed' : styleVal >= 192 ? 'Fuzzy' : styleVal >= 162 ? 'Slinky' : 'Normal';
+    const hyperRainbow = decPairs[28] <= 2, startColor = decPairs[29], reverse = decPairs[30] < 128;
+    const spread = hyperRainbow ? 0.5 : Math.round(5 + (decPairs[28] / 255) * 45);
+    let steps = (type === 'Slinky' || type === 'Pipe') ? 12 + Math.floor((decPairs[23] / 255) * 18) : type === 'Fuzzy' ? 250 + Math.floor((decPairs[23] / 255) * 150) : 70 + Math.floor((decPairs[23] / 255) * 50);
+    return { type, hyperRainbow, startColor, reverse, spread, steps, ribbedInterval: Math.floor(4 + (decPairs[24] / 255) * 12), ribbedGray: decPairs[25] };
+}
+
+function hsbToRgb(h, s, b) { const hue = ((h % 255) + 255) % 255 / 255, sat = s / 255, bri = b / 255; let r, g, bl; const i = Math.floor(hue * 6), f = hue * 6 - i, p = bri * (1 - sat), q = bri * (1 - f * sat), t = bri * (1 - (1 - f) * sat); switch (i % 6) { case 0: r = bri; g = t; bl = p; break; case 1: r = q; g = bri; bl = p; break; case 2: r = p; g = bri; bl = t; break; case 3: r = p; g = q; bl = bri; break; case 4: r = t; g = p; bl = bri; break; case 5: r = bri; g = p; bl = q; break; } return [Math.round(r * 255), Math.round(g * 255), Math.round(bl * 255)]; }
+
+function curvePoint(p0, p1, p2, p3, t) { const t2 = t * t, t3 = t2 * t; return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3); }
+
+function createSeededRandom(seed) { let s = (seed ^ 0x12345678) >>> 0; return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s = s >>> 0; return (s % 10000) / 10000; }; }
+
+function getActiveFont(seed) { if (state.fontStyle === 'Random') { const idx = seed % FONT_NAMES.length; return { font: FONTS[FONT_NAMES[idx]], name: FONT_NAMES[idx] }; } return { font: FONTS[state.fontStyle] || FONT_SMOOTH, name: state.fontStyle }; }
+
+function render() {
+    const width = canvas.width, height = canvas.height;
+    ctx.fillStyle = BACKGROUNDS[state.bgIndex]; ctx.fillRect(0, 0, width, height);
+    const decPairs = generateHash(state.seed);
+    let traits = extractTraits(decPairs);
+    if (state.forceType !== 'Auto') traits = { ...traits, type: state.forceType };
+    const { font: activeFont, name: fontName } = getActiveFont(state.seed);
+    const { type, startColor, reverse, spread, steps, ribbedInterval, ribbedGray } = traits;
+    const random = createSeededRandom(state.seed);
+    const animStartColor = (startColor + state.animOffset) % 255;
+    let allPaths = [], circleSize, letterHeight;
+
+    if (state.squiggleMode) {
+        const squareSize = Math.min(width, height) - 40, boxLeft = (width - squareSize) / 2, boxTop = (height - squareSize) / 2;
+        const numSegments = 6 + Math.floor((decPairs[27] / 255) * 14), padding = squareSize * 0.05, segmentWidth = (squareSize - padding * 2) / numSegments;
+        const heightMultiplier = 0.4 + ((1 + Math.floor((decPairs[26] / 255) * 5)) / 5) * 0.5, yRange = squareSize * heightMultiplier, yBase = boxTop + (squareSize - yRange) / 2;
+        const points = [];
+        for (let i = 0; i <= numSegments; i++) { const x = boxLeft + padding + i * segmentWidth, alternateY = (i % 2 === 0) ? 0.15 : 0.85, randomOffset = (random() - 0.5) * 0.35, yNorm = Math.max(0.05, Math.min(0.95, alternateY + randomOffset)); points.push([x, yBase + yNorm * yRange]); }
+        allPaths = [points]; letterHeight = yRange; circleSize = type === 'Bold' ? squareSize / 5 : squareSize / 10;
+    } else {
+        if (!state.text.trim()) { updateTraits(traits, fontName, 0, 0); return; }
+        const padding = 40, availableWidth = width - padding * 2;
+        let totalWidthUnits = 0; for (const c of state.text) { const letter = activeFont[c]; if (letter) { const isNarrow = 'iljt1'.includes(c); totalWidthUnits += letter.width + 0.18 + (isNarrow ? 0.08 : 0); } } totalWidthUnits -= 0.18;
+        if (totalWidthUnits <= 0) { updateTraits(traits, fontName, 0, 0); return; }
+        const baseWidth = Math.min(availableWidth / totalWidthUnits, 90), hasDescender = /[gjpqy,fQ]/.test(state.text);
+        letterHeight = Math.min(height - padding * 2, baseWidth * 1.15);
+        const totalPixelWidth = totalWidthUnits * baseWidth, descenderOffset = hasDescender ? letterHeight * 0.2 : 0;
+        const startX = (width - totalPixelWidth) / 2, startY = (height - letterHeight) / 2 - descenderOffset;
+        circleSize = type === 'Bold' ? letterHeight / 4 : type === 'Slinky' ? letterHeight / 6 : type === 'Pipe' ? letterHeight / 8 : letterHeight / 6;
+        const wordPaths = []; let currentPath = []; const crossbars = [], dots = [], secondPaths = [];
+        let currentX = startX, prevExit = null, prevExitX = null;
+        for (let i = 0; i < state.text.length; i++) {
+            const char = state.text[i], letter = activeFont[char]; if (!letter) continue;
+            const letterWidth = letter.width * baseWidth;
+            // Extra spacing after narrow letters to prevent bunching
+            const isNarrow = 'iljt1'.includes(char);
+            const spacing = (0.18 + (isNarrow ? 0.08 : 0)) * baseWidth;
+            if (char === ' ') { if (currentPath.length >= 2) wordPaths.push(currentPath); currentPath = []; prevExit = null; currentX += letterWidth + spacing; continue; }
+            if (!letter.path || letter.path.length === 0) { currentX += letterWidth + spacing; prevExit = null; continue; }
+            if (prevExit && letter.entry) { const entryX = currentX + letter.entry.x * letterWidth; const connector = generateConnector(prevExit, letter.entry, prevExitX, entryX, letterHeight); for (const pt of connector) currentPath.push([pt[0], startY + pt[1]]); }
+            for (const pt of letter.path) currentPath.push([currentX + pt[0] * letterWidth, startY + pt[1] * letterHeight]);
+            if (letter.crossbar) crossbars.push(letter.crossbar.map(pt => [currentX + pt[0] * letterWidth, startY + pt[1] * letterHeight]));
+            if (letter.dot) dots.push([currentX + letter.dot[0] * letterWidth, startY + letter.dot[1] * letterHeight]);
+            if (letter.path2) secondPaths.push(letter.path2.map(pt => [currentX + pt[0] * letterWidth, startY + pt[1] * letterHeight]));
+            prevExit = letter.exit; prevExitX = currentX + letter.exit.x * letterWidth; currentX += letterWidth + spacing;
+        }
+        if (currentPath.length >= 2) wordPaths.push(currentPath);
+        allPaths = wordPaths;
+        for (const cb of crossbars) allPaths.push(cb);
+        for (const sp of secondPaths) allPaths.push(sp);
+        // Store dots for drawing after main paths (so colorCounter is correct)
+        state._tempDots = dots;
+        state._tempCircleSize = null; // Will be set after circleSize is calculated
+    }
+    let colorCounter = 0;
+    for (const pathPoints of allPaths) {
+        if (pathPoints.length < 2) continue;
+        const padded = [pathPoints[0], ...pathPoints, pathPoints[pathPoints.length - 1]];
+        const totalSegs = padded.length - 3, totalSteps = totalSegs * steps; let pathStep = 0;
+        for (let seg = 0; seg < padded.length - 3; seg++) {
+            const [p0, p1, p2, p3] = [padded[seg], padded[seg + 1], padded[seg + 2], padded[seg + 3]];
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps, x = curvePoint(p0[0], p1[0], p2[0], p3[0], t), y = curvePoint(p0[1], p1[1], p2[1], p3[1], t);
+                const pathProgress = pathStep / totalSteps, taper = 0.7 + 0.3 * Math.sin(pathProgress * Math.PI), taperSize = circleSize * taper;
+                const hue = reverse ? 255 - (((colorCounter / spread) + animStartColor) % 255) : (((colorCounter / spread) + animStartColor) % 255);
+                const [r, g, b] = hsbToRgb(hue, 255, 255);
+                switch (type) {
+                    case 'Normal': case 'Bold': ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); break;
+                    case 'Ribbed': ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); if (colorCounter % ribbedInterval === 0) { ctx.beginPath(); ctx.arc(x, y, taperSize * 1.1, 0, Math.PI * 2); ctx.strokeStyle = `rgb(${ribbedGray},${ribbedGray},${ribbedGray})`; ctx.lineWidth = 2; ctx.stroke(); } break;
+                    case 'Slinky': ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 2.5; ctx.stroke(); break;
+                    case 'Pipe': ctx.beginPath(); ctx.arc(x, y, taperSize * 1.4, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 2.5; ctx.stroke(); break;
+                    case 'Fuzzy': const fuzzSpread = taperSize * 1.2, fx = x + (random() - 0.5) * fuzzSpread, fy = y + (random() - 0.5) * fuzzSpread, particleSize = taperSize * 0.3 + random() * taperSize * 0.4; ctx.beginPath(); ctx.arc(fx, fy, particleSize, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${b},0.08)`; ctx.fill(); break;
+                }
+                colorCounter++; pathStep++;
+            }
+        }
+    }
+    // Draw dots after main paths, continuing color sequence
+    if (state._tempDots && state._tempDots.length > 0) {
+        for (let d = 0; d < state._tempDots.length; d++) {
+            const dot = state._tempDots[d];
+            const dotHueOffset = colorCounter + d * spread * spread;
+            const hue = reverse ? 255 - (((dotHueOffset / spread) + animStartColor) % 255) : (((dotHueOffset / spread) + animStartColor) % 255);
+            const [r, g, b] = hsbToRgb(hue, 255, 255);
+            const dotSize = circleSize * 0.7;
+            switch (type) {
+                case 'Normal': case 'Bold': 
+                    // Draw multiple overlapping circles for solid blob appearance
+                    for (let c = 0; c < 12; c++) {
+                        const ox = (random() - 0.5) * dotSize * 0.5;
+                        const oy = (random() - 0.5) * dotSize * 0.5;
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 0.85, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill();
+                    } break;
+                case 'Slinky':
+                    for (let c = 0; c < 5; c++) {
+                        const ox = (random() - 0.5) * dotSize * 0.4;
+                        const oy = (random() - 0.5) * dotSize * 0.4;
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 0.9, 0, Math.PI * 2);
+                        ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 2.5; ctx.stroke();
+                    } break;
+                case 'Pipe':
+                    // Pipe segment look: black outline + colored fill
+                    for (let c = 0; c < 12; c++) {
+                        const ox = (random() - 0.5) * dotSize * 0.5;
+                        const oy = (random() - 0.5) * dotSize * 0.5;
+                        // Black outline layer
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 1.0, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fill();
+                    }
+                    for (let c = 0; c < 10; c++) {
+                        const ox = (random() - 0.5) * dotSize * 0.4;
+                        const oy = (random() - 0.5) * dotSize * 0.4;
+                        // Colored center
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 0.7, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill();
+                    } break;
+                case 'Fuzzy':
+                    for (let f = 0; f < 80; f++) {
+                        const fuzzSpread = dotSize * 2.5;
+                        const fx = dot[0] + (random() - 0.5) * fuzzSpread;
+                        const fy = dot[1] + (random() - 0.5) * fuzzSpread;
+                        const particleSize = dotSize * 0.15 + random() * dotSize * 0.4;
+                        ctx.beginPath(); ctx.arc(fx, fy, particleSize, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(${r},${g},${b},0.08)`; ctx.fill();
+                    } break;
+                case 'Ribbed':
+                    for (let c = 0; c < 5; c++) {
+                        const ox = (random() - 0.5) * dotSize * 0.4;
+                        const oy = (random() - 0.5) * dotSize * 0.4;
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 0.9, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill();
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 1.0, 0, Math.PI * 2);
+                        ctx.strokeStyle = `rgb(${ribbedGray},${ribbedGray},${ribbedGray})`;
+                        ctx.lineWidth = 2; ctx.stroke();
+                    } break;
+                default:
+                    ctx.beginPath(); ctx.arc(dot[0], dot[1], dotSize, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill();
+            }
+        }
+    }
+    const endHue = reverse ? 255 - (((colorCounter / spread) + animStartColor) % 255) : (((colorCounter / spread) + animStartColor) % 255);
+    updateTraits(traits, fontName, animStartColor, endHue);
+}
+
+function updateTraits(traits, fontName, startHue, endHue) { const el = document.getElementById('traits'); if (!traits) { el.innerHTML = ''; return; } const [sr, sg, sb] = hsbToRgb(startHue, 255, 255), [er, eg, eb] = hsbToRgb(endHue, 255, 255); el.innerHTML = `<span><span class="trait-val">${traits.type}</span> ${fontName}</span><span>spread <span class="trait-val">${traits.spread}</span></span><span>color <span class="trait-val">${Math.round(startHue)}</span><span class="color-dot" style="background:rgb(${sr},${sg},${sb});margin:0 4px"></span>→<span class="color-dot" style="background:rgb(${er},${eg},${eb});margin:0 4px"></span><span class="trait-val">${Math.round(endHue)}</span></span>`; }
+
+function saveToHistory() { const thumbnail = canvas.toDataURL('image/png'); const decPairs = generateHash(state.seed); const traits = extractTraits(decPairs); const { name: fontName } = getActiveFont(state.seed); const entry = { text: state.squiggleMode ? '~' : state.text, seed: state.seed, forceType: state.forceType, fontStyle: state.fontStyle, squiggleMode: state.squiggleMode, thumbnail, traits: { type: state.forceType !== 'Auto' ? state.forceType : traits.type, font: fontName } }; if (state.history.length > 0 && state.history[0].seed === entry.seed && state.history[0].text === entry.text) return; state.history.unshift(entry); if (state.history.length > 18) state.history.pop(); updateHistoryDisplay(); }
+function updateHistoryDisplay() { const section = document.getElementById('historySection'), container = document.getElementById('historyGrid'), toggleBtn = document.getElementById('historyToggle'); if (state.history.length === 0) { section.style.display = 'none'; return; } section.style.display = 'block'; container.innerHTML = state.history.map((h, i) => { const t = h.traits || {}; return `<div class="history-card" onclick="restoreHistory(${i})"><img src="${h.thumbnail}" alt="${h.text}"><div class="history-tooltip"><span class="tooltip-val">${t.type || '?'}</span> · <span class="tooltip-val">${t.font || '?'}</span></div></div>`; }).join(''); toggleBtn.style.display = state.history.length > 6 ? 'inline-flex' : 'none'; }
+function restoreHistory(i) { const h = state.history[i]; state.seed = h.seed; state.forceType = h.forceType; state.fontStyle = h.fontStyle; state.squiggleMode = h.squiggleMode; if (!h.squiggleMode) { state.text = h.text; document.getElementById('textInput').value = state.text; } document.getElementById('seedInput').value = state.seed; updateButtons(); render(); }
+function toggleHistory() { const grid = document.getElementById('historyGrid'), btn = document.getElementById('historyToggle'); const isCollapsed = grid.classList.toggle('collapsed'); btn.textContent = isCollapsed ? '+' : '−'; }
+function toggleAnimation() { if (state.animating) { state.animating = false; cancelAnimationFrame(state.animFrame); } else { state.animating = true; animate(); } }
+function animate() { if (!state.animating) return; state.animOffset = (state.animOffset + 1) % 255; render(); state.animFrame = requestAnimationFrame(animate); }
+
+// Drawing animation - shows squiggle being written
+let cachedPaths = null;
+let cachedRenderParams = null;
+
+function startDrawAnimation() {
+    if (state.drawAnimating) { stopDrawAnimation(); return; }
+    state.drawAnimating = true;
+    state.drawProgress = 0;
+    document.getElementById('animateBtn').textContent = '⏹';
+    document.getElementById('animateBtn').classList.add('playing');
+    buildPathCache();
+    animateDrawing();
+}
+
+function stopDrawAnimation() {
+    state.drawAnimating = false;
+    document.getElementById('animateBtn').textContent = '▶';
+    document.getElementById('animateBtn').classList.remove('playing');
+    render(); // Final full render
+}
+
+function buildPathCache() {
+    // Build all paths and count total circles
+    const width = canvas.width, height = canvas.height;
+    const decPairs = generateHash(state.seed);
+    let traits = extractTraits(decPairs);
+    if (state.forceType !== 'Auto') traits = { ...traits, type: state.forceType };
+    const { font: activeFont, name: fontName } = getActiveFont(state.seed);
+    const { type, startColor, reverse, spread, steps, ribbedInterval, ribbedGray } = traits;
+    const random = createSeededRandom(state.seed);
+    const animStartColor = (startColor + state.animOffset) % 255;
+    
+    if (!state.text.trim()) { cachedPaths = null; return; }
+    const padding = 40, availableWidth = width - padding * 2;
+    let totalWidthUnits = 0; for (const c of state.text) { const letter = activeFont[c]; if (letter) { const isNarrow = 'iljt1'.includes(c); totalWidthUnits += letter.width + 0.18 + (isNarrow ? 0.08 : 0); } } totalWidthUnits -= 0.18;
+    const baseWidth = Math.min(availableWidth / totalWidthUnits, 90);
+    const hasDescender = /[gjpqy,]/.test(state.text);
+    const letterHeight = Math.min(height - padding * 2, baseWidth * 1.15);
+    const totalPixelWidth = totalWidthUnits * baseWidth;
+    const descenderOffset = hasDescender ? letterHeight * 0.15 : 0;
+    const startX = (width - totalPixelWidth) / 2;
+    const startY = (height - letterHeight) / 2 - descenderOffset / 2;
+    const circleSize = type === 'Bold' ? letterHeight / 4 : type === 'Slinky' ? letterHeight / 6 : type === 'Pipe' ? letterHeight / 8 : letterHeight / 6;
+    
+    let wordPaths = [], currentPath = [], prevExit = null, prevExitX = 0, currentX = startX;
+    const crossbars = [], dots = [], secondPaths = [];
+    
+    for (let i = 0; i < state.text.length; i++) {
+        const char = state.text[i], letter = activeFont[char]; if (!letter) continue;
+        const letterWidth = letter.width * baseWidth;
+        const isNarrow = 'iljt1'.includes(char);
+        const spacing = (0.18 + (isNarrow ? 0.08 : 0)) * baseWidth;
+        if (char === ' ') { if (currentPath.length >= 2) wordPaths.push(currentPath); currentPath = []; prevExit = null; currentX += letterWidth + spacing; continue; }
+        if (!letter.path || letter.path.length === 0) { currentX += letterWidth + spacing; prevExit = null; continue; }
+        if (prevExit && letter.entry) { const entryX = currentX + letter.entry.x * letterWidth; const connector = generateConnector(prevExit, letter.entry, prevExitX, entryX, letterHeight); for (const pt of connector) currentPath.push([pt[0], startY + pt[1]]); }
+        for (const pt of letter.path) currentPath.push([currentX + pt[0] * letterWidth, startY + pt[1] * letterHeight]);
+        if (letter.crossbar) crossbars.push(letter.crossbar.map(pt => [currentX + pt[0] * letterWidth, startY + pt[1] * letterHeight]));
+        if (letter.dot) dots.push([currentX + letter.dot[0] * letterWidth, startY + letter.dot[1] * letterHeight]);
+        if (letter.path2) secondPaths.push(letter.path2.map(pt => [currentX + pt[0] * letterWidth, startY + pt[1] * letterHeight]));
+        if (letter.exit) { prevExit = letter.exit; prevExitX = currentX + letter.exit.x * letterWidth; } else { prevExit = null; }
+        currentX += letterWidth + spacing;
+    }
+    if (currentPath.length >= 2) wordPaths.push(currentPath);
+    
+    // Main letter paths first, then secondPaths (like y descender)
+    let mainPaths = [...wordPaths, ...secondPaths];
+    
+    // Count circles in main paths
+    let mainCircles = 0;
+    for (const pathPoints of mainPaths) {
+        if (pathPoints.length < 2) continue;
+        const padded = [pathPoints[0], ...pathPoints, pathPoints[pathPoints.length - 1]];
+        mainCircles += (padded.length - 3) * (steps + 1);
+    }
+    
+    // Count circles in crossbars
+    let crossbarCircles = 0;
+    for (const pathPoints of crossbars) {
+        if (pathPoints.length < 2) continue;
+        const padded = [pathPoints[0], ...pathPoints, pathPoints[pathPoints.length - 1]];
+        crossbarCircles += (padded.length - 3) * (steps + 1);
+    }
+    
+    cachedPaths = mainPaths;
+    cachedRenderParams = { type, startColor, reverse, spread, steps, ribbedInterval, ribbedGray, circleSize, mainCircles, crossbarCircles, crossbars, dots, animStartColor, random };
+}
+
+function animateDrawing() {
+    if (!state.drawAnimating || !cachedPaths) return;
+    
+    const { type, startColor, reverse, spread, steps, ribbedInterval, ribbedGray, circleSize, mainCircles, crossbarCircles, crossbars, dots, animStartColor } = cachedRenderParams;
+    const random = createSeededRandom(state.seed);
+    const speed = state.drawSpeed;
+    const circlesToDraw = Math.floor(state.drawProgress);
+    const avgCirclesPerLetter = mainCircles / Math.max(state.text.replace(/ /g, '').length, 1);
+    const circlesPerDot = Math.floor(avgCirclesPerLetter * 0.4);
+    const totalCircles = mainCircles + crossbarCircles + dots.length * circlesPerDot;
+    
+    // Clear and redraw background
+    ctx.fillStyle = BACKGROUNDS[state.bgIndex];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Phase 1: Draw main letter paths
+    let colorCounter = 0, circleCount = 0;
+    outer: for (const pathPoints of cachedPaths) {
+        if (pathPoints.length < 2) continue;
+        const padded = [pathPoints[0], ...pathPoints, pathPoints[pathPoints.length - 1]];
+        const totalSegs = padded.length - 3, totalSteps = totalSegs * steps; let pathStep = 0;
+        for (let seg = 0; seg < padded.length - 3; seg++) {
+            const [p0, p1, p2, p3] = [padded[seg], padded[seg + 1], padded[seg + 2], padded[seg + 3]];
+            for (let i = 0; i <= steps; i++) {
+                if (circleCount >= Math.min(circlesToDraw, mainCircles)) break outer;
+                const t = i / steps, x = curvePoint(p0[0], p1[0], p2[0], p3[0], t), y = curvePoint(p0[1], p1[1], p2[1], p3[1], t);
+                const pathProgress = pathStep / totalSteps, taper = 0.7 + 0.3 * Math.sin(pathProgress * Math.PI), taperSize = circleSize * taper;
+                const hue = reverse ? 255 - (((colorCounter / spread) + animStartColor) % 255) : (((colorCounter / spread) + animStartColor) % 255);
+                const [r, g, b] = hsbToRgb(hue, 255, 255);
+                switch (type) {
+                    case 'Normal': case 'Bold': ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); break;
+                    case 'Ribbed': ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); if (colorCounter % ribbedInterval === 0) { ctx.beginPath(); ctx.arc(x, y, taperSize * 1.1, 0, Math.PI * 2); ctx.strokeStyle = `rgb(${ribbedGray},${ribbedGray},${ribbedGray})`; ctx.lineWidth = 2; ctx.stroke(); } break;
+                    case 'Slinky': ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 2.5; ctx.stroke(); break;
+                    case 'Pipe': ctx.beginPath(); ctx.arc(x, y, taperSize * 1.4, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 2.5; ctx.stroke(); break;
+                    case 'Fuzzy': const fuzzSpread = taperSize * 1.2, fx = x + (random() - 0.5) * fuzzSpread, fy = y + (random() - 0.5) * fuzzSpread, particleSize = taperSize * 0.3 + random() * taperSize * 0.4; ctx.beginPath(); ctx.arc(fx, fy, particleSize, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${b},0.08)`; ctx.fill(); break;
+                }
+                colorCounter++; pathStep++; circleCount++;
+            }
+        }
+    }
+    
+    // Phase 2: Draw crossbars (t, f) after main paths done
+    if (circlesToDraw > mainCircles) {
+        const crossbarProgress = circlesToDraw - mainCircles;
+        let cbCount = 0;
+        outer2: for (const pathPoints of crossbars) {
+            if (pathPoints.length < 2) continue;
+            const padded = [pathPoints[0], ...pathPoints, pathPoints[pathPoints.length - 1]];
+            const totalSegs = padded.length - 3, totalSteps = totalSegs * steps; let pathStep = 0;
+            for (let seg = 0; seg < padded.length - 3; seg++) {
+                const [p0, p1, p2, p3] = [padded[seg], padded[seg + 1], padded[seg + 2], padded[seg + 3]];
+                for (let i = 0; i <= steps; i++) {
+                    if (cbCount >= crossbarProgress) break outer2;
+                    const t = i / steps, x = curvePoint(p0[0], p1[0], p2[0], p3[0], t), y = curvePoint(p0[1], p1[1], p2[1], p3[1], t);
+                    const pathProgress = pathStep / totalSteps, taper = 0.7 + 0.3 * Math.sin(pathProgress * Math.PI), taperSize = circleSize * taper;
+                    const hue = reverse ? 255 - (((colorCounter / spread) + animStartColor) % 255) : (((colorCounter / spread) + animStartColor) % 255);
+                    const [r, g, b] = hsbToRgb(hue, 255, 255);
+                    switch (type) {
+                        case 'Normal': case 'Bold': ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); break;
+                        case 'Slinky': ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 2.5; ctx.stroke(); break;
+                        case 'Pipe': ctx.beginPath(); ctx.arc(x, y, taperSize * 1.4, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 2.5; ctx.stroke(); break;
+                        default: ctx.beginPath(); ctx.arc(x, y, taperSize, 0, Math.PI * 2); ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); break;
+                    }
+                    colorCounter++; pathStep++; cbCount++;
+                }
+            }
+        }
+    }
+    
+    // Phase 3: Draw dots (i, j, !) one at a time after crossbars done
+    // Dot pace matches original writing - each dot takes as long as ~40% of a letter
+    // Color continues from where we left off (same formula as render())
+    if (circlesToDraw > mainCircles + crossbarCircles) {
+        const dotPhaseProgress = circlesToDraw - mainCircles - crossbarCircles;
+        const dotsToShow = Math.floor(dotPhaseProgress / circlesPerDot);
+        
+        for (let d = 0; d < Math.min(dotsToShow, dots.length); d++) {
+            const dot = dots[d];
+            // Same formula as render(): colorCounter + d * spread * spread
+            const dotHueOffset = colorCounter + d * spread * spread;
+            const hue = reverse ? 255 - (((dotHueOffset / spread) + animStartColor) % 255) : (((dotHueOffset / spread) + animStartColor) % 255);
+            const [r, g, b] = hsbToRgb(hue, 255, 255);
+            const dotSize = circleSize * 0.7;
+            switch (type) {
+                case 'Normal': case 'Bold': 
+                    // Draw multiple overlapping circles for solid blob appearance
+                    for (let c = 0; c < 12; c++) {
+                        const ox = (random() - 0.5) * dotSize * 0.5;
+                        const oy = (random() - 0.5) * dotSize * 0.5;
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 0.85, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill();
+                    } break;
+                case 'Slinky':
+                    for (let c = 0; c < 5; c++) {
+                        const ox = (random() - 0.5) * dotSize * 0.4;
+                        const oy = (random() - 0.5) * dotSize * 0.4;
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 0.9, 0, Math.PI * 2);
+                        ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 2.5; ctx.stroke();
+                    } break;
+                case 'Pipe':
+                    // Pipe segment look: black outline + colored fill
+                    for (let c = 0; c < 12; c++) {
+                        const ox = (random() - 0.5) * dotSize * 0.5;
+                        const oy = (random() - 0.5) * dotSize * 0.5;
+                        // Black outline layer
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 1.0, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fill();
+                    }
+                    for (let c = 0; c < 10; c++) {
+                        const ox = (random() - 0.5) * dotSize * 0.4;
+                        const oy = (random() - 0.5) * dotSize * 0.4;
+                        // Colored center
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 0.7, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill();
+                    } break;
+                case 'Fuzzy':
+                    for (let f = 0; f < 80; f++) {
+                        const fuzzSpread = dotSize * 2.5;
+                        const fx = dot[0] + (random() - 0.5) * fuzzSpread;
+                        const fy = dot[1] + (random() - 0.5) * fuzzSpread;
+                        const particleSize = dotSize * 0.15 + random() * dotSize * 0.4;
+                        ctx.beginPath(); ctx.arc(fx, fy, particleSize, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(${r},${g},${b},0.08)`; ctx.fill();
+                    } break;
+                case 'Ribbed':
+                    for (let c = 0; c < 5; c++) {
+                        const ox = (random() - 0.5) * dotSize * 0.4;
+                        const oy = (random() - 0.5) * dotSize * 0.4;
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 0.9, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill();
+                        ctx.beginPath(); ctx.arc(dot[0] + ox, dot[1] + oy, dotSize * 1.0, 0, Math.PI * 2);
+                        ctx.strokeStyle = `rgb(${ribbedGray},${ribbedGray},${ribbedGray})`;
+                        ctx.lineWidth = 2; ctx.stroke();
+                    } break;
+                default:
+                    ctx.beginPath(); ctx.arc(dot[0], dot[1], dotSize, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill();
+            }
+        }
+    }
+    
+    state.drawProgress += speed * 3;
+    if (state.drawProgress >= totalCircles) {
+        stopDrawAnimation();
+    } else {
+        requestAnimationFrame(animateDrawing);
+    }
+}
+
+function setupUI() {
+    ['~','Squiggles','Hello World','Mississippi','Balloons','Jiggly'].forEach(p => { const btn = document.createElement('button'); btn.className = 'btn'; btn.textContent = p; btn.onclick = () => { if (p === '~') state.squiggleMode = true; else { state.squiggleMode = false; state.text = p; document.getElementById('textInput').value = p; } state.seed = Math.floor(Math.random() * 100000); document.getElementById('seedInput').value = state.seed; updateButtons(); render(); saveToHistory(); }; document.getElementById('presetBtns').appendChild(btn); });
+    ['Auto','Normal','Bold','Slinky','Pipe','Fuzzy','Ribbed'].forEach(t => { const btn = document.createElement('button'); btn.className = 'btn'; btn.textContent = t; btn.onclick = () => { state.forceType = t; updateButtons(); render(); }; document.getElementById('typeBtns').appendChild(btn); });
+    ['Random',...FONT_NAMES].forEach(f => { const btn = document.createElement('button'); btn.className = 'btn'; btn.textContent = f; btn.onclick = () => { state.fontStyle = f; updateButtons(); render(); }; document.getElementById('fontBtns').appendChild(btn); });
+    document.getElementById('textInput').oninput = e => { state.squiggleMode = false; state.text = e.target.value; updateButtons(); render(); };
+    document.getElementById('textInput').onchange = () => saveToHistory();
+    document.getElementById('seedInput').oninput = e => { state.seed = parseInt(e.target.value) || 0; render(); };
+    document.getElementById('seedInput').onchange = () => saveToHistory();
+    const words = ['Squiggles','Wiggly','Jiggly','Groovy','Loopy','Balloon','Jelly','Giggles','Wobbly','Bubbles','Ripples','Noodle','Doodle','Zigzag','Swirly','Fizzy','Jazzy','Peppy','Zappy','Snappy'];
+    document.getElementById('randWordBtn').onclick = () => { state.text = words[Math.floor(Math.random() * words.length)]; state.seed = Math.floor(Math.random() * 100000); state.squiggleMode = false; document.getElementById('textInput').value = state.text; document.getElementById('seedInput').value = state.seed; updateButtons(); render(); saveToHistory(); };
+    document.getElementById('randSeedBtn').onclick = () => { state.seed = Math.floor(Math.random() * 100000); document.getElementById('seedInput').value = state.seed; render(); saveToHistory(); };
+    canvas.onclick = () => { state.bgIndex = (state.bgIndex + 1) % BACKGROUNDS.length; render(); };
+    canvas.ondblclick = toggleAnimation;
+    document.getElementById('downloadBtn').onclick = () => { const link = document.createElement('a'); link.download = `squigword-${state.text || 'squiggle'}-${state.seed}.png`; link.href = canvas.toDataURL('image/png'); link.click(); };
+    document.getElementById('shareBtn').onclick = () => { const url = new URL(window.location); url.searchParams.set('text', state.squiggleMode ? '' : state.text); url.searchParams.set('seed', state.seed); url.searchParams.set('type', state.forceType); url.searchParams.set('font', state.fontStyle); url.searchParams.set('squiggle', state.squiggleMode ? '1' : '0'); url.searchParams.set('mode', state.darkMode ? 'dark' : 'light'); navigator.clipboard.writeText(url.toString()).then(() => { const btn = document.getElementById('shareBtn'); btn.textContent = '✓'; setTimeout(() => btn.textContent = '🔗', 1200); }); };
+    document.getElementById('modeToggle').onclick = () => { state.darkMode = !state.darkMode; document.body.classList.toggle('light-mode', !state.darkMode); updateModeIcon(); state.bgIndex = state.darkMode ? 7 : 0; localStorage.setItem('squigword-mode', state.darkMode ? 'dark' : 'light'); render(); };
+    document.getElementById('animateBtn').onclick = startDrawAnimation;
+    document.getElementById('speedSlider').oninput = e => { state.drawSpeed = parseInt(e.target.value); };
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('seed')) state.seed = parseInt(params.get('seed')) || 42;
+    if (params.has('text')) { state.text = params.get('text'); document.getElementById('textInput').value = state.text; }
+    if (params.has('type')) state.forceType = params.get('type');
+    if (params.has('font')) state.fontStyle = params.get('font');
+    if (params.get('squiggle') === '1') state.squiggleMode = true;
+    document.getElementById('seedInput').value = state.seed;
+    const savedMode = localStorage.getItem('squigword-mode');
+    if (savedMode) state.darkMode = savedMode === 'dark';
+    if (params.has('mode')) state.darkMode = params.get('mode') !== 'light';
+    document.body.classList.toggle('light-mode', !state.darkMode);
+    updateModeIcon();
+    state.bgIndex = state.darkMode ? 7 : 0;
+    updateButtons();
+}
+
+function updateModeIcon() { document.getElementById('modeToggle').textContent = state.darkMode ? '☀' : '☾'; }
+function updateButtons() { document.querySelectorAll('#typeBtns .btn').forEach(btn => btn.classList.toggle('active', btn.textContent === state.forceType)); document.querySelectorAll('#fontBtns .btn').forEach(btn => btn.classList.toggle('active', btn.textContent === state.fontStyle)); }
+
+setupUI(); render();
+</script>
+</body>
+</html>
