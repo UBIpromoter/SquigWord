@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stroke Animation POC</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui;
+            background: #0d0d0f;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        h1 { font-size: 18px; margin-bottom: 10px; color: #888; }
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        input[type="text"] {
+            font-size: 24px;
+            padding: 10px 16px;
+            width: 280px;
+            background: #1a1a1f;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #2a2a30;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #fff;
+            transition: all 0.15s;
+        }
+        button:hover { background: #3a3a40; }
+        button.active { background: #7c3aed; border-color: #9333ea; }
+        canvas {
+            background: #000;
+            border-radius: 12px;
+            display: block;
+        }
+        .mode-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .mode-btn {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        .mode-btn.active {
+            background: #7c3aed;
+            border-color: #9333ea;
+        }
+        .info {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stroke-by-Stroke Animation</h1>
+
+    <div class="controls">
+        <input type="text" id="textInput" value="hello" spellcheck="false">
+        <button id="animateBtn">Animate</button>
+        <button id="resetBtn">Reset</button>
+    </div>
+
+    <div class="mode-row">
+        <button class="mode-btn active" data-mode="line">Line</button>
+        <button class="mode-btn" data-mode="circles">Circles</button>
+        <button class="mode-btn" data-mode="squiggle">Squiggle</button>
+    </div>
+
+    <canvas id="canvas" width="900" height="300"></canvas>
+
+    <div class="info" id="info">Type text, click Animate</div>
+
+<script>
+// ===========================================
+// HERSHEY CURSIVE STROKE DATA
+// Each letter's path follows actual writing order
+// ===========================================
+const LETTERS = {
+    'a': {
+        main: [[9,16],[8,14],[6,13],[4,13],[2,14],[1,15],[0,17],[0,19],[1,21],[3,22],[5,22],[7,21],[8,19],[10,13],[9,18],[9,21],[10,22],[11,22],[13,21],[14,20],[16,17]],
+        width: 18, exitY: 17
+    },
+    'b': {
+        main: [[4,1],[2,3],[0,8],[0,13],[1,17],[2,19],[4,21],[6,22],[8,22],[10,21],[11,19],[11,17],[10,15],[8,14],[5,14],[6,1],[6,14]],
+        width: 13, exitY: 14
+    },
+    'c': {
+        main: [[11,14],[10,13],[8,13],[5,14],[3,16],[2,18],[2,20],[3,22],[6,22],[8,21],[9,20],[11,17]],
+        width: 13, exitY: 17
+    },
+    'd': {
+        main: [[11,1],[11,22],[11,14],[10,13],[8,13],[5,14],[3,16],[2,18],[2,20],[3,22],[5,22],[8,21],[11,17],[12,22],[13,22],[15,21],[16,20],[18,17]],
+        width: 20, exitY: 17
+    },
+    'e': {
+        main: [[1,20],[3,19],[4,18],[5,16],[5,14],[4,13],[3,13],[1,14],[0,16],[0,19],[1,21],[3,22],[5,22],[7,21],[8,20],[10,17]],
+        width: 12, exitY: 17
+    },
+    'f': {
+        main: [[12,1],[10,1],[8,2],[7,4],[6,8],[6,22]],
+        secondary: [[3,14],[10,14]],
+        width: 14, exitY: 22
+    },
+    'g': {
+        main: [[15,13],[15,27],[14,30],[12,31],[9,31],[7,30],[15,16],[13,14],[11,13],[8,13],[6,14],[4,16],[3,19],[3,21],[4,22],[6,22],[9,21],[11,20],[15,16],[15,19],[15,22],[16,22],[18,21],[19,20],[21,17]],
+        width: 23, exitY: 17
+    },
+    'h': {
+        main: [[4,1],[2,3],[0,8],[0,22],[0,15],[2,14],[5,13],[7,13],[9,14],[10,16],[10,19],[9,22],[10,22],[12,21],[13,20],[15,17]],
+        width: 17, exitY: 17
+    },
+    'i': {
+        main: [[4,13],[2,14],[0,17],[0,19],[1,21],[3,22],[5,22],[7,21],[8,20],[10,17]],
+        dot: [4,7],
+        width: 12, exitY: 17
+    },
+    'j': {
+        main: [[6,13],[4,14],[2,17],[2,19],[3,21],[5,22],[7,22],[9,21],[10,19],[10,14],[9,22],[9,27],[8,30],[6,31],[3,31],[1,30]],
+        dot: [6,7],
+        width: 12, exitY: 30
+    },
+    'k': {
+        main: [[4,1],[2,3],[0,8],[0,22],[0,18],[5,14],[8,13],[10,13],[4,17],[6,19],[8,22],[9,22],[11,21],[12,20],[14,17]],
+        width: 16, exitY: 17
+    },
+    'l': {
+        main: [[6,1],[4,3],[2,8],[1,13],[0,19],[0,21],[1,22],[3,22],[5,21],[6,20],[8,17]],
+        width: 10, exitY: 17
+    },
+    'm': {
+        main: [[4,13],[2,14],[0,17],[0,22],[0,16],[2,14],[4,13],[6,13],[8,14],[9,17],[9,22],[9,16],[11,14],[13,13],[15,13],[17,14],[18,17],[18,19],[17,22],[18,22],[20,21],[21,20],[23,17]],
+        width: 25, exitY: 17
+    },
+    'n': {
+        main: [[4,13],[2,14],[0,17],[0,22],[0,16],[2,14],[4,13],[6,13],[9,14],[10,17],[10,19],[9,22],[10,22],[12,21],[13,20],[15,17]],
+        width: 17, exitY: 17
+    },
+    'o': {
+        main: [[5,13],[3,14],[1,16],[0,19],[0,21],[1,22],[3,22],[6,21],[8,19],[9,16],[9,14],[8,13],[6,13],[4,14],[2,17],[2,19],[3,21],[5,22],[8,22],[10,21],[11,20],[13,17]],
+        width: 15, exitY: 17
+    },
+    'p': {
+        main: [[4,13],[2,14],[0,17],[0,31],[0,16],[2,14],[5,13],[7,13],[9,14],[10,16],[10,19],[9,21],[7,22],[4,22],[2,21],[0,19]],
+        width: 12, exitY: 19
+    },
+    // FIXED: Proper cursive 'q' stroke order
+    // Enter from left → bowl counter-clockwise → down descender → curl right exit
+    'q': {
+        main: [
+            [0, 19],      // enter from left at mid-height
+            [1, 16],      // curve up into bowl
+            [3, 14],      // top of bowl
+            [6, 13],      // top-right of bowl
+            [9, 14],      // right side of bowl
+            [10, 17],     // bottom-right of bowl
+            [9, 20],      // bottom of bowl
+            [6, 22],      // bottom-left of bowl
+            [3, 21],      // completing bowl
+            [2, 18],      // back near start
+            [4, 16],      // into stem
+            [6, 18],      // continue to stem
+            [8, 22],      // down toward baseline
+            [9, 26],      // into descender
+            [10, 30],     // descender
+            [12, 32],     // bottom of descender
+            [15, 30],     // curl right
+            [17, 27],     // exit tail going up-right
+            [19, 24]      // exit point
+        ],
+        width: 20, exitY: 24
+    },
+    'r': {
+        main: [[4,13],[2,14],[0,17],[0,22],[0,18],[1,16],[3,14],[5,13],[8,13],[10,14]],
+        width: 12, exitY: 14
+    },
+    // FIXED: Proper cursive 's' stroke order
+    // Enter from left baseline → curve up → S-curve down → exit right
+    's': {
+        main: [
+            [0, 20],      // enter from left at baseline
+            [1, 18],      // curve up
+            [3, 15],      // top of upper curve
+            [6, 14],      // peak right
+            [8, 15],      // start curving back
+            [6, 17],      // middle crossing point
+            [3, 18],      // curve to lower left
+            [2, 20],      // bottom of lower curve
+            [4, 22],      // curve around bottom
+            [7, 21],      // heading right
+            [10, 19],     // exit upward-right
+            [12, 17]      // exit point for connector
+        ],
+        width: 14, exitY: 17
+    },
+    't': {
+        main: [[6,1],[4,8],[3,13],[2,17],[2,20],[3,22],[5,22],[7,21],[8,20],[10,17]],
+        crossbar: [[1,13],[8,13]],
+        width: 12, exitY: 17
+    },
+    'u': {
+        main: [[4,13],[2,14],[0,17],[0,19],[1,21],[3,22],[6,22],[8,21],[10,19],[14,13],[12,14],[10,17],[10,19],[9,22],[10,22],[12,21],[13,20],[15,17]],
+        width: 17, exitY: 17
+    },
+    'v': {
+        main: [[3,13],[1,14],[0,17],[1,20],[3,22],[5,22],[7,20],[11,13],[9,14],[7,17],[7,19],[6,22],[7,22],[9,21],[10,20],[12,17]],
+        width: 14, exitY: 17
+    },
+    'w': {
+        main: [[4,13],[2,14],[0,17],[0,19],[1,21],[3,22],[5,22],[6,21],[7,18],[10,13],[8,14],[7,17],[7,22],[10,13],[12,13],[13,14],[14,17],[14,19],[13,22],[14,22],[16,21],[17,20],[19,17]],
+        width: 21, exitY: 17
+    },
+    'x': {
+        main: [[2,13],[0,14],[4,22],[5,22],[7,21],[8,20],[10,17]],
+        cross: [[10,13],[8,14],[2,22]],
+        width: 12, exitY: 17
+    },
+    'y': {
+        main: [[3,13],[1,14],[0,17],[1,20],[3,22],[5,22],[7,20],[11,13],[9,14],[7,17],[7,19],[6,22],[5,27],[3,30],[1,31],[0,31]],
+        width: 13, exitY: 31
+    },
+    'z': {
+        main: [[0,13],[10,13],[8,14],[4,22],[0,22],[4,22],[6,21],[7,20],[9,17]],
+        width: 12, exitY: 17
+    },
+    ' ': {
+        main: [],
+        width: 8, exitY: 17
+    }
+};
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let mode = 'line';
+let animating = false;
+let animProgress = 0;
+let animFrame = null;
+
+// ===========================================
+// BUILD PATH FOR ENTIRE WORD
+// ===========================================
+function buildWordPath(text, scale = 4, startX = 50, startY = 100) {
+    const fullPath = [];
+    const secondaryPaths = [];
+
+    let xOffset = startX;
+    let lastPoint = null;
+
+    for (const char of text.toLowerCase()) {
+        const letter = LETTERS[char];
+        if (!letter) {
+            xOffset += 10 * scale;
+            lastPoint = null;
+            continue;
+        }
+
+        if (char === ' ') {
+            xOffset += letter.width * scale;
+            lastPoint = null;
+            continue;
+        }
+
+        const main = letter.main;
+        if (main.length === 0) continue;
+
+        // Transform to canvas coordinates
+        const transformed = main.map(([x, y]) => [
+            xOffset + x * scale,
+            startY + y * scale
+        ]);
+
+        const firstPt = transformed[0];
+
+        // Add smooth connector from last letter
+        if (lastPoint) {
+            const midX = (lastPoint[0] + firstPt[0]) / 2;
+            const midY = startY + 20 * scale;
+
+            fullPath.push([
+                lastPoint[0] + (midX - lastPoint[0]) * 0.3,
+                lastPoint[1] + (midY - lastPoint[1]) * 0.3
+            ]);
+            fullPath.push([midX, midY]);
+            fullPath.push([
+                midX + (firstPt[0] - midX) * 0.7,
+                midY + (firstPt[1] - midY) * 0.7
+            ]);
+        }
+
+        // Add all points
+        for (const pt of transformed) {
+            fullPath.push(pt);
+        }
+
+        lastPoint = transformed[transformed.length - 1];
+
+        // Secondary strokes (dots, crossbars)
+        if (letter.dot) {
+            secondaryPaths.push({
+                type: 'dot',
+                pos: [xOffset + letter.dot[0] * scale, startY + letter.dot[1] * scale]
+            });
+        }
+        if (letter.crossbar) {
+            secondaryPaths.push({
+                type: 'line',
+                points: letter.crossbar.map(([x, y]) => [xOffset + x * scale, startY + y * scale])
+            });
+        }
+        if (letter.secondary) {
+            secondaryPaths.push({
+                type: 'line',
+                points: letter.secondary.map(([x, y]) => [xOffset + x * scale, startY + y * scale])
+            });
+        }
+        if (letter.cross) {
+            secondaryPaths.push({
+                type: 'line',
+                points: letter.cross.map(([x, y]) => [xOffset + x * scale, startY + y * scale])
+            });
+        }
+
+        xOffset += letter.width * scale;
+    }
+
+    return { main: fullPath, secondary: secondaryPaths };
+}
+
+// ===========================================
+// CALCULATE PATH LENGTH
+// ===========================================
+function getPathLength(points) {
+    let len = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+        const dx = points[i+1][0] - points[i][0];
+        const dy = points[i+1][1] - points[i][1];
+        len += Math.sqrt(dx*dx + dy*dy);
+    }
+    return len;
+}
+
+// ===========================================
+// GET POINT AT DISTANCE ALONG PATH
+// ===========================================
+function getPointAtDistance(points, targetDist) {
+    let accumulated = 0;
+
+    for (let i = 0; i < points.length - 1; i++) {
+        const dx = points[i+1][0] - points[i][0];
+        const dy = points[i+1][1] - points[i][1];
+        const segLen = Math.sqrt(dx*dx + dy*dy);
+
+        if (accumulated + segLen >= targetDist) {
+            const t = (targetDist - accumulated) / segLen;
+            return [
+                points[i][0] + dx * t,
+                points[i][1] + dy * t
+            ];
+        }
+        accumulated += segLen;
+    }
+
+    return points[points.length - 1];
+}
+
+// ===========================================
+// HSB TO RGB
+// ===========================================
+function hsbToRgb(h, s, b) {
+    h = (h % 256) / 255;
+    s = s / 255;
+    b = b / 255;
+
+    const i = Math.floor(h * 6);
+    const f = h * 6 - i;
+    const p = b * (1 - s);
+    const q = b * (1 - f * s);
+    const t = b * (1 - (1 - f) * s);
+
+    let r, g, bl;
+    switch (i % 6) {
+        case 0: r = b; g = t; bl = p; break;
+        case 1: r = q; g = b; bl = p; break;
+        case 2: r = p; g = b; bl = t; break;
+        case 3: r = p; g = q; bl = b; break;
+        case 4: r = t; g = p; bl = b; break;
+        case 5: r = b; g = p; bl = q; break;
+    }
+
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(bl * 255)];
+}
+
+// ===========================================
+// RENDER FUNCTIONS
+// ===========================================
+
+function renderLine(path, progress) {
+    const { main, secondary } = path;
+    if (main.length < 2) return;
+
+    const totalLen = getPathLength(main);
+    const drawLen = totalLen * progress;
+
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.beginPath();
+    ctx.moveTo(main[0][0], main[0][1]);
+
+    let accumulated = 0;
+    for (let i = 0; i < main.length - 1; i++) {
+        const dx = main[i+1][0] - main[i][0];
+        const dy = main[i+1][1] - main[i][1];
+        const segLen = Math.sqrt(dx*dx + dy*dy);
+
+        if (accumulated + segLen <= drawLen) {
+            ctx.lineTo(main[i+1][0], main[i+1][1]);
+            accumulated += segLen;
+        } else {
+            const remaining = drawLen - accumulated;
+            const t = remaining / segLen;
+            ctx.lineTo(
+                main[i][0] + dx * t,
+                main[i][1] + dy * t
+            );
+            break;
+        }
+    }
+    ctx.stroke();
+
+    // Draw secondary strokes after main is done
+    if (progress >= 1) {
+        for (const sec of secondary) {
+            if (sec.type === 'dot') {
+                ctx.beginPath();
+                ctx.arc(sec.pos[0], sec.pos[1], 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+            } else if (sec.type === 'line') {
+                ctx.beginPath();
+                ctx.moveTo(sec.points[0][0], sec.points[0][1]);
+                for (let i = 1; i < sec.points.length; i++) {
+                    ctx.lineTo(sec.points[i][0], sec.points[i][1]);
+                }
+                ctx.stroke();
+            }
+        }
+    }
+}
+
+function renderCircles(path, progress) {
+    const { main, secondary } = path;
+    if (main.length < 2) return;
+
+    const totalLen = getPathLength(main);
+    const drawLen = totalLen * progress;
+    const circleSize = 8;
+    const stepSize = 3;
+    const numSteps = Math.floor(drawLen / stepSize);
+
+    for (let i = 0; i <= numSteps; i++) {
+        const dist = i * stepSize;
+        const pt = getPointAtDistance(main, dist);
+
+        ctx.beginPath();
+        ctx.arc(pt[0], pt[1], circleSize, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+    }
+
+    // Secondary after main
+    if (progress >= 1) {
+        for (const sec of secondary) {
+            if (sec.type === 'dot') {
+                ctx.beginPath();
+                ctx.arc(sec.pos[0], sec.pos[1], circleSize, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (sec.type === 'line') {
+                const secLen = getPathLength(sec.points);
+                const secSteps = Math.floor(secLen / stepSize);
+                for (let i = 0; i <= secSteps; i++) {
+                    const pt = getPointAtDistance(sec.points, i * stepSize);
+                    ctx.beginPath();
+                    ctx.arc(pt[0], pt[1], circleSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+    }
+}
+
+function renderSquiggle(path, progress) {
+    const { main, secondary } = path;
+    if (main.length < 2) return;
+
+    const totalLen = getPathLength(main);
+    const drawLen = totalLen * progress;
+    const circleSize = 10;
+    const stepSize = 2;
+    const numSteps = Math.floor(drawLen / stepSize);
+    const spread = 3;
+
+    let colorCounter = 0;
+
+    for (let i = 0; i <= numSteps; i++) {
+        const dist = i * stepSize;
+        const pt = getPointAtDistance(main, dist);
+
+        // Taper effect
+        const pathProgress = i / numSteps;
+        const taper = 0.7 + 0.3 * Math.sin(pathProgress * Math.PI);
+        const size = circleSize * taper;
+
+        // Rainbow color
+        const hue = ((colorCounter / spread) + 100) % 255;
+        const [r, g, b] = hsbToRgb(hue, 255, 255);
+
+        ctx.beginPath();
+        ctx.arc(pt[0], pt[1], size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fill();
+
+        colorCounter++;
+    }
+
+    // Secondary with continued color
+    if (progress >= 1) {
+        for (const sec of secondary) {
+            if (sec.type === 'dot') {
+                const hue = ((colorCounter / spread) + 100) % 255;
+                const [r, g, b] = hsbToRgb(hue, 255, 255);
+
+                // Multiple overlapping circles for dot
+                for (let j = 0; j < 8; j++) {
+                    ctx.beginPath();
+                    ctx.arc(
+                        sec.pos[0] + (Math.random() - 0.5) * 4,
+                        sec.pos[1] + (Math.random() - 0.5) * 4,
+                        circleSize * 0.7,
+                        0, Math.PI * 2
+                    );
+                    ctx.fillStyle = `rgb(${r},${g},${b})`;
+                    ctx.fill();
+                }
+                colorCounter += 5;
+            } else if (sec.type === 'line') {
+                const secLen = getPathLength(sec.points);
+                const secSteps = Math.floor(secLen / stepSize);
+                for (let i = 0; i <= secSteps; i++) {
+                    const pt = getPointAtDistance(sec.points, i * stepSize);
+                    const hue = ((colorCounter / spread) + 100) % 255;
+                    const [r, g, b] = hsbToRgb(hue, 255, 255);
+
+                    ctx.beginPath();
+                    ctx.arc(pt[0], pt[1], circleSize * 0.8, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgb(${r},${g},${b})`;
+                    ctx.fill();
+                    colorCounter++;
+                }
+            }
+        }
+    }
+}
+
+// ===========================================
+// MAIN RENDER
+// ===========================================
+function render(progress = 1) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const text = document.getElementById('textInput').value;
+    if (!text.trim()) {
+        document.getElementById('info').textContent = 'Type something...';
+        return;
+    }
+
+    const path = buildWordPath(text, 4, 50, 80);
+
+    if (path.main.length < 2) {
+        document.getElementById('info').textContent = 'No renderable characters';
+        return;
+    }
+
+    switch (mode) {
+        case 'line':
+            renderLine(path, progress);
+            break;
+        case 'circles':
+            renderCircles(path, progress);
+            break;
+        case 'squiggle':
+            renderSquiggle(path, progress);
+            break;
+    }
+
+    const percent = Math.round(progress * 100);
+    document.getElementById('info').textContent = `${text} | ${mode} | ${percent}%`;
+}
+
+// ===========================================
+// ANIMATION
+// ===========================================
+function animate() {
+    if (!animating) return;
+
+    animProgress += 0.015;
+
+    if (animProgress >= 1) {
+        animProgress = 1;
+        animating = false;
+        document.getElementById('animateBtn').textContent = 'Animate';
+        document.getElementById('animateBtn').classList.remove('active');
+    }
+
+    render(animProgress);
+
+    if (animating) {
+        animFrame = requestAnimationFrame(animate);
+    }
+}
+
+function startAnimation() {
+    if (animating) {
+        animating = false;
+        cancelAnimationFrame(animFrame);
+        document.getElementById('animateBtn').textContent = 'Animate';
+        document.getElementById('animateBtn').classList.remove('active');
+        return;
+    }
+
+    animProgress = 0;
+    animating = true;
+    document.getElementById('animateBtn').textContent = 'Stop';
+    document.getElementById('animateBtn').classList.add('active');
+    animate();
+}
+
+function reset() {
+    animating = false;
+    animProgress = 1;
+    cancelAnimationFrame(animFrame);
+    document.getElementById('animateBtn').textContent = 'Animate';
+    document.getElementById('animateBtn').classList.remove('active');
+    render(1);
+}
+
+// ===========================================
+// EVENT HANDLERS
+// ===========================================
+document.getElementById('animateBtn').addEventListener('click', startAnimation);
+document.getElementById('resetBtn').addEventListener('click', reset);
+document.getElementById('textInput').addEventListener('input', () => {
+    reset();
+});
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        mode = btn.dataset.mode;
+        render(animProgress);
+    });
+});
+
+// Initial render
+render(1);
+</script>
+</body>
+</html>

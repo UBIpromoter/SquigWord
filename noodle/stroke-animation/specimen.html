@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Font Specimen - All Letters</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui;
+            background: #0d0d0f;
+            color: #fff;
+            padding: 30px;
+        }
+        h1 { font-size: 20px; margin-bottom: 20px; }
+        h2 { font-size: 16px; color: #888; margin: 30px 0 15px 0; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+        }
+        .letter-box {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+        .letter-box canvas {
+            display: block;
+            margin: 0 auto;
+        }
+        .letter-label {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+        .letter-box.bad {
+            border-color: #ef4444;
+        }
+        .letter-box.missing {
+            border-color: #f59e0b;
+            background: #1a1a0a;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            background: #2a2a30;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+        }
+        button.active { background: #7c3aed; border-color: #9333ea; }
+    </style>
+</head>
+<body>
+    <h1>Font Specimen - Review All Letters</h1>
+
+    <div class="controls">
+        <button class="font-btn active" data-font="script">Script</button>
+        <button class="font-btn" data-font="roman">Roman</button>
+    </div>
+
+    <h2>Uppercase A-Z</h2>
+    <div class="grid" id="uppercase"></div>
+
+    <h2>Lowercase a-z</h2>
+    <div class="grid" id="lowercase"></div>
+
+    <h2>Sample Words</h2>
+    <div id="samples" style="margin-top: 15px;"></div>
+
+<script>
+// Script Simplex + Script Complex uppercase
+const HERSHEY_SCRIPT = {
+    'a': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXVRUWUZV[W[YZZY\\V',
+    'b': 'M[MVOSRNSLTITGSFQGPIOMNTNZO[P[RZTXUUURVVWWYW[V',
+    'c': 'MXTTTSSRQROSNTMVMXNZP[S[VYXV',
+    'd': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXZF RVRUWUZV[W[YZZY\\V',
+    'e': 'NXOYQXRWSUSSRRQROSNUNXOZQ[S[UZVYXV',
+    'f': 'OWOVSQUNVLWIWGVFTGSIQQNZKaJdJfKgMfNcOZP[R[TZUYWV',
+    'g': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZTY RVRTYPdOfMgLfLdMaP^S\\U[XY[V',
+    'h': 'M\\MVOSRNSLTITGSFQGPIOMNSM[ RM[NXOVQSSRURVSVUUXUZV[W[YZZY\\V',
+    'i': 'PWSMSNTNTMSM RPVRRPXPZQ[R[TZUYWV',
+    'j': 'PWSMSNTNTMSM RPVRRLdKfIgHfHdIaL^O\\Q[TYWV',
+    'k': 'M[MVOSRNSLTITGSFQGPIOMNSM[ RM[NXOVQSSRURVSVUTVQV RQVSWTZU[V[XZYY[V',
+    'l': 'OWOVQSTNULVIVGUFSGRIQMPTPZQ[R[TZUYWV',
+    'm': 'E^EVGSIRJSJTIXH[ RIXJVLSNRPRQSQTPXO[ RPXQVSSURWRXSXUWXWZX[Y[[Z\\Y^V',
+    'n': 'J\\JVLSNROSOTNXM[ RNXOVQSSRURVSVUUXUZV[W[YZZY\\V',
+    'o': 'LZRRPRNSMTLVLXMZO[Q[SZTYUWUUTSRRQSQURWTXWXYWZV',
+    'p': 'KZKVMSNQMUGg RMUNSPRRRTSUUUWTYSZQ[ RMZO[R[UZWYZV',
+    'q': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZ RVRUUSZPaOdOfPgRfScS\\U[XY[V',
+    'r': 'MZMVOSPQPSSSTTTVSYSZT[U[WZXYZV',
+    's': 'NYNVPSQQQSSVTXTZR[ RNZP[T[VZWYYV',
+    't': 'OXOVQSSO RVFPXPZQ[S[UZVYXV RPNWN',
+    'u': 'L[LVNRLXLZM[O[QZSXUU RVRTXTZU[V[XZYY[V',
+    'v': 'L[LVNRMWMZN[O[RZTXUUUR RURVVWWYW[V',
+    'w': 'I^LRJTIWIYJ[L[NZPX RRRPXPZQ[S[UZWXXUXR RXRYVZW\\W^V',
+    'x': 'JZJVLSNRPRQSQZR[U[XYZV RWSVRTRSSOZN[L[KZ',
+    'y': 'L[LVNRLXLZM[O[QZSXUU RVRPdOfMgLfLdMaP^S\\U[XY[V',
+    'z': 'LZLVNSPRRRTTTVSXQZN[P\\Q^QaPdOfMgLfLdMaP^S\\WYZV',
+    ' ': 'JZ',
+    'A': 'E\\XFVHTKQPOSLWIZG[E[DZDXEWFXEY RXFWJUTT[ RXFU[ RT[TYSVRTPRNQLQKRKTLWOZR[V[XZ',
+    'B': 'F^UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWIXHY ROLNNMOKOJNJLKJMHOGRFXFZG[I[KZMXNTORO RXFYGZIZKYMXN RTOWPXQYSYVXYWZU[S[RZRXSU RTOVPWQXSXVWYU[',
+    'C': 'H]KHJJJLKNNOQOUNWMYKZIZGYFWFTGQJOMMQLULXMZP[R[UZWXXVXTWRURSSRU RWFUGRJPMNQMUMXNZP[',
+    'D': 'F]UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWJWLXNZP[S[UZWXYTZOZLYIWGUFPFMGKIJKJMKNMNNMOK',
+    'E': 'I\\WIVJVLWMYMZKZIYGWFTFRGQHPJPLQNSO RTFRHQJQMSO RSOQONPLRKTKWLYMZO[R[UZWXXVXTWRURSSRU RQOOPMRLTLXMZ',
+    'F': 'G\\WHVJTORUQWOZM[ RQLPNNOLOKMKKLINGQF[FXGWHVKTSSVRXPZM[K[IZHYHXIWJXIY RSFWGXG ROSPRRQVQXPZMXT',
+    'G': 'G]JIIKIMJOLPOPROTNWKXHXGWFVFTGRIQKPNPQQSSTUTWSYQZO RWFUGSIRKQNQRST RZOYSWWUYSZO[L[JZIXIWJVKWJX RYSWVUXRZO[',
+    'H': 'F^LLKKKILGOFRFOQMWLYKZI[G[FZFXGWHXGY RRFOONRLWKYI[ RJTKSMRVOXN[L]J^H^G]F\\FZGXJWLURTVTYV[W[YZ[X R\\FZHXLVRUVUYV[',
+    'I': 'IYWHUKSPQUPWNZL[ RYLWNTOQOONNLNJOHQGUFYFWHVJTPRVQXOZL[J[IZIXJWKXJY',
+    'J': 'IZYFWHUKSPPYN] RYMWOTPQPOONMNKOIQGUFYFWIVKSTQXPZN]M^K_J^J\\KZMXOWRVVU',
+    'K': 'F^LLKKKIMGPFRFOQMWLYKZI[G[FZFXGWHXGY RRFOONRLWKYI[ RZGWKUMSNPO R]G\\H]I^H^G]F\\FZGWLVMTNPO RPOSPTRUYV[ RPORPSRTYV[W[YZ[X',
+    'L': 'I[MILKLMMOOPRPUOWNZK[H[GZFYFWGVHTKPUOWMZK[ RVHTLRSQVPXNZK[I[HZHXIWKWMXPZR[U[WZYX',
+    'M': 'D`RFNOKUIXGZE[C[BZBXCWDXCY RRFPMOQNVNZP[ RRFQJPOOVOZP[ R[FWORXP[ R[FYMXQWVWZY[Z[\\Z^X R[FZJYOXVXZY[',
+    'N': 'G^RFQJOPMULWJZH[F[EZEXFWGXFY RRFRKSVT[ RRFSKTVT[ R`G_H`IaHaG`F^F\\GZJYLWQUWT[',
+    'O': 'H]SFQGOIMLLNKRKVLYMZO[Q[TZVXXUYSZOZKYHXGWGUHSJQNPSPV RQGOJMNLRLVMYO[',
+    'P': 'F]UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWIXHY ROLNNMOKOJNJLKJMHOGRFVFYGZH[J[MZOYPVQTQRP RVFXGYHZJZMYOXPVQ',
+    'Q': 'H]SFQGOIMLLNKRKVLYMZO[Q[TZVXXUYSZOZKYHXGWGUHSJQNPSPV RQGOJMNLRLVMYO[ RU[ZY', // Better Q - O shape with tail
+    'R': 'F^UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWIXHY ROLNNMOKOJNJLKJMHOGRFWFZG[I[KZMYNVORO RWFYGZIZKYMXNVO RROUPVRWYX[ RROTPURVYX[Y[[Z]X',
+    'S': 'H\\H[JZLXOTQQSMTJTGSFRFQGPIPKQMSOVQXSYUYWXYWZT[P[MZKXJVJT',
+    'T': 'I[YHXJVOTUSWQZO[ RSLRNPONOMMMKNIPGSF\\FZGYHXKVSUVTXRZO[M[KZJYJXKWLXKY RUFYGZG',
+    'U': 'G]HJJGLFMFOHOKNNKVKYL[ RMFNHNKKSJVJYL[N[PZSWUTVR RZFVRUVUYW[X[ZZ\\X R[FWRVVVYW[',
+    'V': 'G\\HJJGLFMFOHOKNOLVLYM[ RMFNHNKLRKVKYM[N[QZTWVTXPYMZIZGYFXFWGVIVLWNYP[Q]Q',
+    'W': 'F]ILHLGKGIHGJFNFMHLLKUJ[ RLLLUK[ RVFTHRLOUMYK[ RVFUHTLSUR[ RTLTUS[ R`F^G\\IZLWUUYS[',
+    'X': 'H\\PKOLMLLKLIMGOFQFSGTITLSPQUOXMZJ[H[GZGXHWIXHY RQFRGSISLRPPUNXLZJ[ R]G\\H]I^H^G]F[FYGWIULSPRURXSZT[U[WZYX',
+    'Y': 'G]JJLGNFOFQGQIOOORPT ROFPGPINONRPTRTUSWQYNZL R\\FZLWTUX R]F[LYQWUUXSZP[L[JZIXIWJVKWJX',
+    'Z': 'G\\ZHYJWOVRUTSWQYOZL[ RSLRNPONOMMMKNIPGSF]F[GZHYKXOVUTXQZL[H[GZGXHWJWLXOZQ[T[WZYX RVFZG[G'
+};
+
+const R = 82;
+
+function decodeGlyph(data) {
+    if (!data || data.length < 2) return null;
+    const leftMargin = data.charCodeAt(0) - R;
+    const rightMargin = data.charCodeAt(1) - R;
+    const strokes = [];
+    let currentStroke = [];
+    let i = 2;
+    while (i < data.length) {
+        if (data[i] === ' ' && data[i + 1] === 'R') {
+            if (currentStroke.length > 0) {
+                strokes.push(currentStroke);
+                currentStroke = [];
+            }
+            i += 2;
+            continue;
+        }
+        const x = data.charCodeAt(i) - R;
+        const y = data.charCodeAt(i + 1) - R;
+        currentStroke.push([x, y]);
+        i += 2;
+    }
+    if (currentStroke.length > 0) strokes.push(currentStroke);
+    return { left: leftMargin, right: rightMargin, width: rightMargin - leftMargin, strokes };
+}
+
+function drawLetter(canvas, glyph) {
+    if (!glyph || !glyph.strokes || glyph.strokes.length === 0) {
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#333';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = '12px system-ui';
+        ctx.fillText('missing', 10, 40);
+        return false;
+    }
+
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const scale = 2;
+    const offsetX = 10;
+    const offsetY = 25; // Push down - Hershey baseline is near 0, ascenders go negative
+
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (const stroke of glyph.strokes) {
+        if (stroke.length < 2) continue;
+        ctx.beginPath();
+        ctx.moveTo(offsetX + (stroke[0][0] - glyph.left) * scale, offsetY + stroke[0][1] * scale);
+        for (let i = 1; i < stroke.length; i++) {
+            ctx.lineTo(offsetX + (stroke[i][0] - glyph.left) * scale, offsetY + stroke[i][1] * scale);
+        }
+        ctx.stroke();
+    }
+    return true;
+}
+
+function buildSpecimen(fontData) {
+    // Uppercase
+    const upperDiv = document.getElementById('uppercase');
+    upperDiv.innerHTML = '';
+    for (let i = 65; i <= 90; i++) {
+        const char = String.fromCharCode(i);
+        const box = document.createElement('div');
+        box.className = 'letter-box';
+        const canvas = document.createElement('canvas');
+        canvas.width = 70;
+        canvas.height = 70;
+        const glyph = fontData[char] ? decodeGlyph(fontData[char]) : null;
+        const ok = drawLetter(canvas, glyph);
+        if (!ok) box.classList.add('missing');
+        box.appendChild(canvas);
+        const label = document.createElement('div');
+        label.className = 'letter-label';
+        label.textContent = char;
+        box.appendChild(label);
+        upperDiv.appendChild(box);
+    }
+
+    // Lowercase
+    const lowerDiv = document.getElementById('lowercase');
+    lowerDiv.innerHTML = '';
+    for (let i = 97; i <= 122; i++) {
+        const char = String.fromCharCode(i);
+        const box = document.createElement('div');
+        box.className = 'letter-box';
+        const canvas = document.createElement('canvas');
+        canvas.width = 70;
+        canvas.height = 70;
+        const glyph = fontData[char] ? decodeGlyph(fontData[char]) : null;
+        const ok = drawLetter(canvas, glyph);
+        if (!ok) box.classList.add('missing');
+        box.appendChild(canvas);
+        const label = document.createElement('div');
+        label.className = 'letter-label';
+        label.textContent = char;
+        box.appendChild(label);
+        lowerDiv.appendChild(box);
+    }
+
+    // Sample words
+    const samplesDiv = document.getElementById('samples');
+    samplesDiv.innerHTML = '';
+    const words = ['Quick', 'Squiggles', 'Hello', 'Magic', 'The', 'Lazy', 'Fox'];
+    for (const word of words) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 80;
+        canvas.style.background = '#000';
+        canvas.style.borderRadius = '8px';
+        canvas.style.marginRight = '10px';
+        canvas.style.marginBottom = '10px';
+        drawWord(canvas, word, fontData);
+        samplesDiv.appendChild(canvas);
+    }
+}
+
+function drawWord(canvas, text, fontData) {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const scale = 2;
+    let xOffset = 15;
+    const baselineY = 35; // Push baseline down for ascenders
+
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (const char of text) {
+        const data = fontData[char];
+        if (!data) {
+            xOffset += 20;
+            continue;
+        }
+        const glyph = decodeGlyph(data);
+        if (!glyph) continue;
+
+        for (const stroke of glyph.strokes) {
+            if (stroke.length < 2) continue;
+            ctx.beginPath();
+            ctx.moveTo(xOffset + (stroke[0][0] - glyph.left) * scale, baselineY + stroke[0][1] * scale);
+            for (let i = 1; i < stroke.length; i++) {
+                ctx.lineTo(xOffset + (stroke[i][0] - glyph.left) * scale, baselineY + stroke[i][1] * scale);
+            }
+            ctx.stroke();
+        }
+        xOffset += glyph.width * scale;
+    }
+
+    // Label
+    ctx.fillStyle = '#666';
+    ctx.font = '11px system-ui';
+    ctx.fillText(text, 20, canvas.height - 8);
+}
+
+// Font buttons
+document.querySelectorAll('.font-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        buildSpecimen(HERSHEY_SCRIPT); // Only script for now
+    });
+});
+
+buildSpecimen(HERSHEY_SCRIPT);
+</script>
+</body>
+</html>
