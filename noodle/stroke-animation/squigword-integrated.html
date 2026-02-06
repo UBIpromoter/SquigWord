@@ -483,18 +483,17 @@ function render(progress = 1) {
     const startColor = state.seed % 255;
 
     // Circle size based on type - matching Snowfro ratios
-    // Normal, Slinky, Fuzzy, Ribbed = SAME exterior dimensions (H/13)
-    // Bold = H/5, Pipe = H/7
     const letterHeight = 160;
     const canvasH = 320;
-    let circleSize = type === 'Bold' ? letterHeight / 5   // Snowfro: H/5
-                   : type === 'Pipe' ? letterHeight / 7   // Snowfro: H/7
-                   : letterHeight / 13; // Snowfro: H/13 for all others
+    let circleSize = type === 'Bold' ? letterHeight / 5
+                   : type === 'Pipe' ? letterHeight / 10
+                   : type === 'Slinky' ? letterHeight / 9  // Larger rings per spec (H/10 to H/8)
+                   : letterHeight / 13; // H/13 for Normal, Fuzzy, Ribbed
 
     // Steps per segment based on type
-    const steps = type === 'Slinky' ? 6   // More rings for better tube shape
-                : type === 'Pipe' ? 10
-                : type === 'Fuzzy' ? 100  // Particles per segment
+    const steps = type === 'Slinky' ? 8   // Low enough for visible rings
+                : type === 'Pipe' ? 30    // Enough density for smooth pipe
+                : type === 'Fuzzy' ? 60   // Moderate density, particles multiply it
                 : 80;
 
     // Ribbed: hash determines rib color (0-255 grayscale, black to white)
@@ -512,6 +511,12 @@ function render(progress = 1) {
     }
     const drawPoints = Math.floor(totalPoints * progress);
 
+    // Slinky minimum distance between rings (for uniform spacing)
+    const slinkyMinDist = type === 'Slinky' ? circleSize * 0.35 : 0;
+
+    // Ribbed: collect hole positions for second pass (so they draw ON TOP)
+    const ribbedHoles = [];
+
     let colorCounter = 0;
     let pointsDrawn = 0;
 
@@ -523,6 +528,7 @@ function render(progress = 1) {
         const totalSegs = padded.length - 3;
         const pathSteps = totalSegs * (steps + 1);  // Match actual loop iterations
         let pathStep = 0;
+        let lastSlinkyX = -999, lastSlinkyY = -999;
 
         for (let seg = 0; seg < totalSegs; seg++) {
             const [p0, p1, p2, p3] = [padded[seg], padded[seg + 1], padded[seg + 2], padded[seg + 3]];
@@ -539,6 +545,19 @@ function render(progress = 1) {
                 const taper = 0.7 + 0.3 * Math.sin(pathProgress * Math.PI);
                 const taperSize = circleSize * taper * (pathPoints.lineWidth || 1);
 
+                // Slinky: skip if too close to last drawn ring
+                if (type === 'Slinky' && !pathPoints.isDot) {
+                    const dx = x - lastSlinkyX, dy = y - lastSlinkyY;
+                    if (Math.sqrt(dx*dx + dy*dy) < slinkyMinDist) {
+                        colorCounter++;
+                        pathStep++;
+                        pointsDrawn++;
+                        continue;
+                    }
+                    lastSlinkyX = x;
+                    lastSlinkyY = y;
+                }
+
                 // Color
                 const hue = ((colorCounter / spread) + startColor) % 255;
                 const [r, g, b] = hsbToRgb(hue, 255, 255);
@@ -553,69 +572,67 @@ function render(progress = 1) {
                         ctx.fill();
                         break;
                     case 'Slinky':
-                        // Airy mesh tube with visible rings
-                        const ringSize = circleSize * (pathPoints.lineWidth || 1);
-                        ctx.beginPath();
-                        ctx.arc(x, y, ringSize, 0, Math.PI * 2);
-                        // Dots should be filled, not stroked
+                        // Stroked rings (NOT filled) — like a spring/slinky
                         if (pathPoints.isDot) {
+                            ctx.beginPath();
+                            ctx.arc(x, y, circleSize * 0.8, 0, Math.PI * 2);
                             ctx.fillStyle = `rgb(${r},${g},${b})`;
                             ctx.fill();
                         } else {
+                            // Constant ring size (no taper) — uniform spring look
+                            const ringR = circleSize * (pathPoints.lineWidth || 1);
+                            ctx.beginPath();
+                            ctx.arc(x, y, ringR, 0, Math.PI * 2);
                             ctx.strokeStyle = `rgb(${r},${g},${b})`;
-                            ctx.lineWidth = 0.5;
+                            ctx.lineWidth = 2;
                             ctx.stroke();
                         }
                         break;
                     case 'Pipe':
-                        // Dots should be filled circles with black outline
                         if (pathPoints.isDot) {
-                            ctx.beginPath();
-                            ctx.arc(x, y, taperSize * 1.2, 0, Math.PI * 2);
-                            ctx.fillStyle = 'black';
-                            ctx.fill();
                             ctx.beginPath();
                             ctx.arc(x, y, taperSize, 0, Math.PI * 2);
                             ctx.fillStyle = `rgb(${r},${g},${b})`;
                             ctx.fill();
-                        } else {
-                            // Pipe: black outline ring + colored inner ring
-                            ctx.beginPath();
-                            ctx.arc(x, y, taperSize * 1.15, 0, Math.PI * 2);
-                            ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-                            ctx.lineWidth = 1;
+                            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+                            ctx.lineWidth = 1.5;
                             ctx.stroke();
+                        } else {
+                            // Pipe: colored fill + thin dark outline for 3D depth
                             ctx.beginPath();
                             ctx.arc(x, y, taperSize, 0, Math.PI * 2);
-                            ctx.strokeStyle = `rgb(${r},${g},${b})`;
-                            ctx.lineWidth = 1.5;
+                            ctx.fillStyle = `rgb(${r},${g},${b})`;
+                            ctx.fill();
+                            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                            ctx.lineWidth = 1;
                             ctx.stroke();
                         }
                         break;
                     case 'Fuzzy':
-                        // Pixelated cloud effect - smaller distinct particles
-                        for (let p = 0; p < 3; p++) {
-                            const fuzzSpread = circleSize * 2;
-                            const fx = x + (random() - 0.5) * fuzzSpread;
-                            const fy = y + (random() - 0.5) * fuzzSpread;
-                            // Smaller, more pixelated particles
-                            const particleSize = 1 + random() * 4;
+                        // Cloud/fur effect — many soft overlapping particles
+                        for (let p = 0; p < 5; p++) {
+                            const fuzzRadius = circleSize * 1.5;
+                            // Gaussian-ish distribution (sum of randoms)
+                            const fx = x + (random() + random() - 1) * fuzzRadius;
+                            const fy = y + (random() + random() - 1) * fuzzRadius;
+                            const particleSize = 2 + random() * 5;
+                            const alpha = 0.08 + random() * 0.12;
                             ctx.beginPath();
                             ctx.arc(fx, fy, particleSize, 0, Math.PI * 2);
-                            ctx.fillStyle = `rgba(${r},${g},${b},0.15)`;
+                            ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
                             ctx.fill();
                         }
                         break;
                     case 'Ribbed':
-                        // Snowfro: only draw at intervals, skip other positions
-                        // This creates gaps/ribs in the tube
-                        if (colorCounter % 3 === 0 || i === 0 || i === steps) {
-                            ctx.beginPath();
-                            ctx.arc(x, y, taperSize, 0, Math.PI * 2);
-                            ctx.fillStyle = `rgb(${r},${g},${b})`;
-                            ctx.fill();
+                        // Draw colored circle (same as Normal)
+                        ctx.beginPath();
+                        ctx.arc(x, y, taperSize, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgb(${r},${g},${b})`;
+                        ctx.fill();
+                        // Collect hole positions for second pass
+                        if (colorCounter % ribbedInterval === 0) {
+                            ribbedHoles.push({ x, y, size: taperSize * 0.6 });
                         }
-                        // Skipped positions leave gaps = the "ribs"
                         break;
                 }
 
@@ -623,6 +640,16 @@ function render(progress = 1) {
                 pathStep++;
                 pointsDrawn++;
             }
+        }
+    }
+
+    // Ribbed second pass: punch gray holes on top of everything
+    if (type === 'Ribbed' && ribbedHoles.length > 0) {
+        for (const hole of ribbedHoles) {
+            ctx.beginPath();
+            ctx.arc(hole.x, hole.y, hole.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgb(${ribbedGray},${ribbedGray},${ribbedGray})`;
+            ctx.fill();
         }
     }
 

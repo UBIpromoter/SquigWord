@@ -177,12 +177,3 @@ Pen plotter fonts (Hershey, EMS) were designed for stroke-by-stroke drawing. The
 
 ### Working Demo
 `noodle/stroke-animation/hershey-demo.html` — animates text stroke-by-stroke with correct order.
-
----
-
-<!-- Format:
-### Mistake: [Brief description]
-- **Root Cause:** [Why it happened]
-- **Rule:** [What to do instead]
-- **Example:** [Concrete case]
--->
