@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SquigWord v2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d0f;
+            --card: #161619;
+            --input: #1e1e22;
+            --text: #ffffff;
+            --dim: #9ca3af;
+            --muted: #6b7280;
+            --accent: #a855f7;
+            --glow: rgba(168, 85, 247, 0.2);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .app { max-width: 1280px; width: 100%; margin: 0 auto; padding: 16px; }
+        h1 { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .layout { display: flex; gap: 12px; align-items: flex-start; }
+        .col-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+        .col-right { flex: 1; min-width: 0; }
+        .canvas-wrap {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 6px;
+            position: relative;
+        }
+        .canvas-label {
+            position: absolute;
+            top: 10px;
+            left: 14px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            z-index: 1;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        canvas { width: 100%; aspect-ratio: 3/2; display: block; border-radius: 6px; }
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+        }
+        .field-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-end; }
+        .field { flex: 1; min-width: 0; }
+        .field-label { display: block; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+        input[type="text"], input[type="number"] {
+            background: var(--input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 15px;
+            font-family: inherit;
+            color: var(--text);
+            outline: none;
+            width: 100%;
+        }
+        input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+        input[type="number"] { width: 80px; font-family: 'JetBrains Mono', monospace; text-align: center; font-size: 13px; }
+        .btn-row { display: flex; flex-wrap: wrap; gap: 5px; }
+        .btn {
+            padding: 6px 11px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--input);
+            color: var(--dim);
+            transition: all 0.12s;
+        }
+        .btn:hover { background: var(--bg); color: var(--text); }
+        .btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+        .icon-btn {
+            width: 34px; height: 34px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--muted);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px;
+        }
+        .icon-btn:hover { background: var(--glow); border-color: var(--accent); color: var(--text); }
+        .slider-group { display: flex; align-items: center; gap: 8px; }
+        .slider-group label { font-size: 10px; color: var(--muted); min-width: 50px; }
+        .slider-group input[type="range"] { flex: 1; height: 4px; -webkit-appearance: none; background: var(--border); border-radius: 2px; }
+        .slider-group input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+        .slider-group span { font-size: 11px; color: var(--dim); min-width: 22px; text-align: right; font-family: 'JetBrains Mono', monospace; }
+        .traits { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: var(--muted); padding: 8px 0 0; border-top: 1px solid var(--border); margin-top: 10px; }
+        .trait { display: flex; align-items: center; gap: 4px; }
+        .trait-val { font-weight: 600; color: var(--text); }
+        .color-preview { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <h1>SquigWord v2</h1>
+        <div class="layout">
+            <div class="col-left">
+                <div class="canvas-wrap">
+                    <div class="canvas-label">SquigWord</div>
+                    <canvas id="wordCanvas" width="900" height="600"></canvas>
+                </div>
+                <div class="panel">
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="field-label">Text</label>
+                            <div style="display:flex;gap:6px;">
+                                <input type="text" id="textInput" value="Squiggles" maxlength="20" spellcheck="false">
+                                <button class="icon-btn" id="randWordBtn" title="Random word">&#8635;</button>
+                            </div>
+                        </div>
+                        <div class="field" style="flex:0 0 auto;">
+                            <label class="field-label">Seed</label>
+                            <div style="display:flex;gap:6px;">
+                                <input type="number" id="seedInput" value="42">
+                                <button class="icon-btn" id="randSeedBtn" title="Random seed">&#8635;</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <div class="btn-row" id="wordBtns"></div>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <label class="field-label">Type</label>
+                        <div class="btn-row" id="typeBtns">
+                            <button class="btn active" data-type="Normal">Normal</button>
+                            <button class="btn" data-type="Bold">Bold</button>
+                            <button class="btn" data-type="Slinky">Slinky</button>
+                            <button class="btn" data-type="Pipe">Pipe</button>
+                            <button class="btn" data-type="Fuzzy">Fuzzy</button>
+                            <button class="btn" data-type="Ribbed">Ribbed</button>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        <div class="slider-group">
+                            <label>Spread</label>
+                            <input type="range" id="spreadSlider" min="1" max="50" value="15">
+                            <span id="spreadLabel">15</span>
+                        </div>
+                    </div>
+                    <div class="traits" id="traits"></div>
+                </div>
+            </div>
+            <div class="col-right">
+                <div class="canvas-wrap">
+                    <div class="canvas-label">Reference Squiggle (Snowfro)</div>
+                    <canvas id="squiggleCanvas" width="900" height="600"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ===========================================
+// SHARED UTILITIES
+// ===========================================
+
+// Catmull-Rom spline interpolation (same as p5.js curvePoint)
+function curvePoint(p0, p1, p2, p3, t) {
+    const t2 = t * t, t3 = t2 * t;
+    return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+}
+
+// HSB→RGB conversion (p5.js colorMode(HSB, 255))
+function hsbToRgb(h, s, b) {
+    const hue = ((h % 255) + 255) % 255 / 255;
+    const sat = s / 255, bri = b / 255;
+    let r, g, bl;
+    const i = Math.floor(hue * 6), f = hue * 6 - i;
+    const p = bri * (1 - sat), q = bri * (1 - f * sat), tv = bri * (1 - (1 - f) * sat);
+    switch (i % 6) {
+        case 0: r = bri; g = tv; bl = p; break;
+        case 1: r = q; g = bri; bl = p; break;
+        case 2: r = p; g = bri; bl = tv; break;
+        case 3: r = p; g = q; bl = bri; break;
+        case 4: r = tv; g = p; bl = bri; break;
+        case 5: r = bri; g = p; bl = q; break;
+    }
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(bl * 255)];
+}
+
+// p5.js map()
+function map(value, inMin, inMax, outMin, outMax) {
+    return outMin + (outMax - outMin) * ((value - inMin) / (inMax - inMin));
+}
+
+// Hash system — xorshift32, generates 32 decPairs from seed
+function generateDecPairs(seed) {
+    let s = (Math.abs(seed) ^ 0xDEADBEEF) >>> 0;
+    const pairs = [];
+    for (let i = 0; i < 32; i++) {
+        s ^= s << 13;
+        s ^= s >>> 17;
+        s ^= s << 5;
+        s = s >>> 0;
+        pairs.push(s % 256);
+    }
+    return pairs;
+}
+
+// Snowfro's PRNG (used for fuzzy)
+function createRng(seed) {
+    let s = seed;
+    return function rnd() {
+        s ^= s << 13;
+        s ^= s >> 17;
+        s ^= s << 5;
+        return (((s < 0) ? ~s + 1 : s) % 1000) / 1000;
+    };
+}
+
+// ===========================================
+// STATE
+// ===========================================
+const state = {
+    text: 'Squiggles',
+    seed: 42,
+    type: 'Normal',
+    spread: 15,
+    bgIndex: 7
+};
+
+const BACKGROUNDS = ['#ffffff','#f5f5f5','#e8e8e8','#d0d0d0','#a0a0a0','#606060','#303030','#000000'];
+const WORDS = ['Squiggles', 'Hello', 'Magic', 'Rainbow', 'Groovy', 'Jazzy', 'Zigzag', 'Twisty', 'Funky', 'Wiggly'];
+
+// ===========================================
+// REFERENCE SQUIGGLE — Exact Snowfro port
+// ===========================================
+
+function renderSquiggle() {
+    const canvas = document.getElementById('squiggleCanvas');
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    const decPairs = generateDecPairs(state.seed);
+
+    const startColor = decPairs[29];
+    const reverse = decPairs[30] < 128;
+    const isSlinky = state.type === 'Slinky' || state.type === 'Pipe';
+    const isPipe = state.type === 'Pipe';
+    const isBold = state.type === 'Bold';
+    const isSegmented = state.type === 'Ribbed';
+    const isFuzzy = state.type === 'Fuzzy';
+
+    const segments = Math.floor(map(decPairs[26], 0, 255, 12, 20));
+    const ht = map(decPairs[27], 0, 255, 3, 4);
+    const spread = state.spread;
+    const wt = 2;
+    const amp = 1;
+    const sw = height / 1200;
+
+    const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
+    const ribbedSteps = Math.round(200 * Math.max(1, div / 5));
+    const steps = isSlinky ? 50 : isFuzzy ? 1000 : isSegmented ? ribbedSteps : 200;
+
+    ctx.fillStyle = BACKGROUNDS[state.bgIndex];
+    ctx.fillRect(0, 0, width, height);
+    ctx.lineWidth = sw;
+
+    const rngBaseSeed = (Math.abs(state.seed) ^ 0xDEADBEEF) >>> 0;
+    let rng = createRng(rngBaseSeed);
+
+    const offsetX = (width / 2) - (width / wt / 2);
+    const offsetY = height / 2;
+
+    let color = 0;
+
+    for (let j = 0; j < segments - 2; j++) {
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+
+            const x = curvePoint(
+                width / segments / wt * j,
+                width / segments / wt * (j + 1),
+                width / segments / wt * (j + 2),
+                width / segments / wt * (j + 3),
+                t
+            ) + offsetX;
+
+            const y = curvePoint(
+                map(decPairs[j], 0, 255, -height / ht, height / ht) * amp,
+                map(decPairs[j + 1], 0, 255, -height / ht, height / ht) * amp,
+                map(decPairs[j + 2], 0, 255, -height / ht, height / ht) * amp,
+                map(decPairs[j + 3], 0, 255, -height / ht, height / ht) * amp,
+                t
+            ) + offsetY;
+
+            const hue = reverse
+                ? 255 - (((color / spread) + startColor) % 255)
+                : (((color / spread) + startColor) % 255);
+            const [r, g, b] = hsbToRgb(hue, 255, 255);
+
+            if (isFuzzy) {
+                const fuzzX = x + map(rng(), 0, 1, 0, height / 10);
+                const fuzzY = y + map(rng(), 0, 1, 0, height / 10);
+                const dist = Math.sqrt((x - fuzzX) ** 2 + (y - fuzzY) ** 2);
+                if (dist < height / 11.5) {
+                    const particleSize = map(rng(), 0, 1, height / 160, height / 16);
+                    ctx.beginPath();
+                    ctx.arc(fuzzX, fuzzY, particleSize / 2, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${r},${g},${b},${20/255})`;
+                    ctx.fill();
+                }
+            } else {
+                if (isSlinky && isPipe) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, (height / 7) / 2, 0, Math.PI * 2);
+                    if (i === 0 || i === steps - 1) { ctx.fillStyle = 'black'; ctx.fill(); }
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = sw;
+                    ctx.stroke();
+                }
+
+                if (isSlinky) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, (height / 13) / 2, 0, Math.PI * 2);
+                    if (i === 0 || i === steps - 1) { ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); }
+                    ctx.strokeStyle = `rgb(${r},${g},${b})`;
+                    ctx.lineWidth = sw;
+                    ctx.stroke();
+                } else {
+                    const diam = isBold ? height / 5 : height / 13;
+                    ctx.beginPath();
+                    ctx.arc(x, y, diam / 2, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgb(${r},${g},${b})`;
+                    ctx.fill();
+                }
+
+                if (isSegmented && !isSlinky && !isBold) {
+                    if (i % div === 0 || i === 0 || i === steps - 1) {
+                        ctx.beginPath();
+                        ctx.arc(x, y, (height / 12) / 2, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgb(${decPairs[25]},${decPairs[25]},${decPairs[25]})`;
+                        ctx.fill();
+                    }
+                }
+            }
+            color++;
+        }
+        rng = createRng(rngBaseSeed);
+    }
+}
+
+// ===========================================
+// HERSHEY FONT DATA
+// ===========================================
+const HERSHEY_RAW = {
+    'a': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXVRUWUZV[W[YZZY\\V',
+    'b': 'M[MVOSRNSLTITGSFQGPIOMNTNZO[P[RZTXUUURVVWWYW[V',
+    'c': 'MXTTTSSRQROSNTMVMXNZP[S[VYXV',
+    'd': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXZF RVRUWUZV[W[YZZY\\V',
+    'e': 'NXOYQXRWSUSSRRQROSNUNXOZQ[S[UZVYXV',
+    'f': 'OWOVSQUNVLWIWGVFTGSIQQNZKaJdJfKgMfNcOZP[R[TZUYWV',
+    'g': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZTY RVRTYPdOfMgLfLdMaP^S\\U[XY[V',
+    'h': 'M\\MVOSRNSLTITGSFQGPIOMNSM[ RM[NXOVQSSRURVSVUUXUZV[W[YZZY\\V',
+    'i': 'PWSMSNTNTMSM RPVRRPXPZQ[R[TZUYWV',
+    'j': 'PWSMSNTNTMSM RPVRRLdKfIgHfHdIaL^O\\Q[TYWV',
+    'k': 'M[MVOSRNSLTITGSFQGPIOMNSM[ RM[NXOVQSSRURVSVUTVQV RQVSWTZU[V[XZYY[V',
+    'l': 'OWOVQSTNULVIVGUFSGRIQMPTPZQ[R[TZUYWV',
+    'm': 'E^EVGSIRJSJTIXH[ RIXJVLSNRPRQSQTPXO[ RPXQVSSURWRXSXUWXWZX[Y[[Z\\Y^V',
+    'n': 'J\\JVLSNROSOTNXM[ RNXOVQSSRURVSVUUXUZV[W[YZZY\\V',
+    'o': 'LZRRPRNSMTLVLXMZO[Q[SZTYUWUUTSRRQSQURWTXWXYWZV',
+    'p': 'KZKVMSNQMUJc RMUNSPRRRTSUUUWTYSZQ[ RMZO[R[UZWYZV',
+    'q': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZ RVRUUSZPaOdOfPgRfScS\\U[XY[V',
+    'r': 'MZMVOSPQPSSSTTTVSYSZT[U[WZXYZV',
+    's': 'NYNVPSQQQSSVTXTZR[ RNZP[T[VZWYYV',
+    't': 'OXOVQSSO RVFPXPZQ[S[UZVYXV RPNWN',
+    'u': 'L[LVNRLXLZM[O[QZSXUU RVRTXTZU[V[XZYY[V',
+    'v': 'L[LVNRMWMZN[O[RZTXUUUR RURVVWWYW[V',
+    'w': 'I^LRJTIWIYJ[L[NZPX RRRPXPZQ[S[UZWXXUXR RXRYVZW\\W^V',
+    'x': 'JZJVLSNRPRQSQZR[U[XYZV RWSVRTRSSOZN[L[KZ',
+    'y': 'L[LVNRLXLZM[O[QZSXUU RVRPdOfMgLfLdMaP^S\\U[XY[V',
+    'z': 'LZLVNSPRRRTTTVSXQZN[P\\Q^QaPdOfMgLfLdMaP^S\\WYZV',
+    ' ': 'JZ',
+    'A': 'E\\XFVHTKQPOSLWIZG[E[DZDXEWFXEY RXFWJUTT[ RXFU[ RT[TYSVRTPRNQLQKRKTLWOZR[V[XZ',
+    'B': 'F^UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWIXHY ROLNNMOKOJNJLKJMHOGRFXFZG[I[KZMXNTORO RXFYGZIZKYMXN RTOWPXQYSYVXYWZU[S[RZRXSU RTOVPWQXSXVWYU[',
+    'C': 'H]KHJJJLKNNOQOUNWMYKZIZGYFWFTGQJOMMQLULXMZP[R[UZWXXVXTWRURSSRU RWFUGRJPMNQMUMXNZP[',
+    'D': 'F]UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWJWLXNZP[S[UZWXYTZOZLYIWGUFPFMGKIJKJMKNMNNMOK',
+    'E': 'I\\WIVJVLWMYMZKZIYGWFTFRGQHPJPLQNSO RTFRHQJQMSO RSOQONPLRKTKWLYMZO[R[UZWXXVXTWRURSSRU RQOOPMRLTLXMZ',
+    'F': 'G\\WHVJTORUQWOZM[ RQLPNNOLOKMKKLINGQF[FXGWHVKTSSVRXPZM[K[IZHYHXIWJXIY RSFWGXG ROSPRRQVQXPZMXT',
+    'G': 'G]JIIKIMJOLPOPROTNWKXHXGWFVFTGRIQKPNPQQSSTUTWSYQZO RWFUGSIRKQNQRST RZOYSWWUYSZO[L[JZIXIWJVKWJX RYSWVUXRZO[',
+    'H': 'F^LLKKKILGOFRFOQMWLYKZI[G[FZFXGWHXGY RRFOONRLWKYI[ RJTKSMRVOXN[L]J^H^G]F\\FZGXJWLURTVTYV[W[YZ[X R\\FZHXLVRUVUYV[',
+    'I': 'IYWHUKSPQUPWNZL[ RYLWNTOQOONNLNJOHQGUFYFWHVJTPRVQXOZL[J[IZIXJWKXJY',
+    'J': 'IZYFWHUKSPPYN] RYMWOTPQPOONMNKOIQGUFYFWIVKSTQXPZN]M^K_J^J\\KZMXOWRVVU',
+    'K': 'F^LLKKKIMGPFRFOQMWLYKZI[G[FZFXGWHXGY RRFOONRLWKYI[ RZGWKUMSNPO R]G\\H]I^H^G]F\\FZGWLVMTNPO RPOSPTRUYV[ RPORPSRTYV[W[YZ[X',
+    'L': 'I[MILKLMMOOPRPUOWNZK[H[GZFYFWGVHTKPUOWMZK[ RVHTLRSQVPXNZK[I[HZHXIWKWMXPZR[U[WZYX',
+    'M': 'D`RFNOKUIXGZE[C[BZBXCWDXCY RRFPMOQNVNZP[ RRFQJPOOVOZP[ R[FWORXP[ R[FYMXQWVWZY[Z[\\Z^X R[FZJYOXVXZY[',
+    'N': 'G^RFQJOPMULWJZH[F[EZEXFWGXFY RRFRKSVT[ RRFSKTVT[ R`G_H`IaHaG`F^F\\GZJYLWQUWT[',
+    'O': 'H]SFQGOIMLLNKRKVLYMZO[Q[TZVXXUYSZOZKYHXGWGUHSJQNPSPV RQGOJMNLRLVMYO[',
+    'P': 'F]UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWIXHY ROLNNMOKOJNJLKJMHOGRFVFYGZH[J[MZOYPVQTQRP RVFXGYHZJZMYOXPVQ',
+    'Q': 'H]SFQGOIMLLNKRKVLYMZO[Q[TZVXXUYSZOZKYHXGWGUHSJQNPSPV RQGOJMNLRLVMYO[ RU[ZY',
+    'R': 'F^UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWIXHY ROLNNMOKOJNJLKJMHOGRFWFZG[I[KZMYNVORO RWFYGZIZKYMXNVO RROUPVRWYX[ RROTPURVYX[Y[[Z]X',
+    'S': 'H\\H[JZLXOTQQSMTJTGSFRFQGPIPKQMSOVQXSYUYWXYWZT[P[MZKXJVJT',
+    'T': 'I[YHXJVOTUSWQZO[ RSLRNPONOMMMKNIPGSF\\FZGYHXKVSUVTXRZO[M[KZJYJXKWLXKY RUFYGZG',
+    'U': 'G]HJJGLFMFOHOKNNKVKYL[ RMFNHNKKSJVJYL[N[PZSWUTVR RZFVRUVUYW[X[ZZ\\X R[FWRVVVYW[',
+    'V': 'G\\HJJGLFMFOHOKNOLVLYM[ RMFNHNKLRKVKYM[N[QZTWVTXPYMZIZGYFXFWGVIVLWNYP[Q]Q',
+    'W': 'F]ILHLGKGIHGJFNFMHLLKUJ[ RLLLUK[ RVFTHRLOUMYK[ RVFUHTLSUR[ RTLTUS[ R`F^G\\IZLWUUYS[',
+    'X': 'H\\PKOLMLLKLIMGOFQFSGTITLSPQUOXMZJ[H[GZGXHWIXHY RQFRGSISLRPPUNXLZJ[ R]G\\H]I^H^G]F[FYGWIULSPRURXSZT[U[WZYX',
+    'Y': 'G]JJLGNFOFQGQIOOORPT ROFPGPINONRPTRTUSWQYNZL R\\FZLWTUX R]F[LYQWUUXSZP[L[JZIXIWJVKWJX',
+    'Z': 'G\\ZHYJWOVRUTSWQYOZL[ RSLRNPONOMMMKNIPGSF]F[GZHYKXOVUTXQZL[H[GZGXHWJWLXOZQ[T[WZYX RVFZG[G'
+};
+
+const RR = 82;
+function decodeGlyph(data) {
+    const leftMargin = data.charCodeAt(0) - RR;
+    const rightMargin = data.charCodeAt(1) - RR;
+    const strokes = [];
+    let currentStroke = [];
+    let i = 2;
+    while (i < data.length) {
+        if (data[i] === ' ' && data[i + 1] === 'R') {
+            if (currentStroke.length > 0) { strokes.push(currentStroke); currentStroke = []; }
+            i += 2;
+            continue;
+        }
+        const x = data.charCodeAt(i) - RR;
+        const y = data.charCodeAt(i + 1) - RR;
+        currentStroke.push([x, y]);
+        i += 2;
+    }
+    if (currentStroke.length > 0) strokes.push(currentStroke);
+    return { left: leftMargin, right: rightMargin, width: rightMargin - leftMargin, strokes };
+}
+
+let FONT = {};
+for (const [char, data] of Object.entries(HERSHEY_RAW)) {
+    if (data && data.length >= 2) FONT[char] = decodeGlyph(data);
+}
+
+function isDot(stroke) {
+    if (stroke.length <= 2) return true;
+    let len = 0;
+    for (let i = 0; i < stroke.length - 1; i++) {
+        const dx = stroke[i+1][0] - stroke[i][0], dy = stroke[i+1][1] - stroke[i][1];
+        len += Math.sqrt(dx*dx + dy*dy);
+    }
+    return len < 10;
+}
+
+function isCrossbar(stroke) {
+    if (stroke.length < 2) return false;
+    const dx = Math.abs(stroke[stroke.length-1][0] - stroke[0][0]);
+    const dy = Math.abs(stroke[stroke.length-1][1] - stroke[0][1]);
+    return dx > dy * 2 && stroke.length <= 4;
+}
+
+// ===========================================
+// SQUIGWORD RENDERER
+// ===========================================
+
+function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
+    const primaryPaths = [];
+    const secondaryPaths = [];
+
+    let rawWidth = 0;
+    const rawSpacing = 1.5;
+    for (const char of text) {
+        const glyph = FONT[char];
+        if (!glyph) continue;
+        rawWidth += glyph.width + (char === ' ' ? 0 : rawSpacing);
+    }
+    rawWidth -= rawSpacing;
+    if (rawWidth <= 0) return { primary: [], secondary: [] };
+
+    const maxWidth = canvasWidth * 0.75;
+    const maxHeightScale = (canvasHeight * 0.65) / (30 * 0.85);
+    const scale = Math.min(maxWidth / rawWidth, maxHeightScale);
+    const extraSpacing = rawSpacing * scale;
+
+    const baselineY = canvasHeight * 0.42;
+    const yScale = scale * 0.85;
+
+    let totalWidth = 0;
+    for (const char of text) {
+        const glyph = FONT[char];
+        if (!glyph) continue;
+        totalWidth += glyph.width * scale + (char === ' ' ? 0 : extraSpacing);
+    }
+    totalWidth -= extraSpacing;
+
+    let xOffset = (canvasWidth - totalWidth) / 2;
+
+    let minY = Infinity, maxY = -Infinity;
+
+    let letterIdx = 0;
+
+    for (const char of text) {
+        const glyph = FONT[char];
+        if (!glyph) continue;
+
+        if (char === ' ') { xOffset += glyph.width * scale; continue; }
+
+        const yWobble = decPairs ? map(decPairs[letterIdx % 10], 0, 255, -10, 10) : 0;
+        const rotation = decPairs ? map(decPairs[10 + (letterIdx % 10)], 0, 255, -0.07, 0.07) : 0;
+        const scaleVar = decPairs ? map(decPairs[20 + (letterIdx % 2)], 0, 255, 0.94, 1.06) : 1;
+
+        const letterCenterX = xOffset + (glyph.width / 2) * scale;
+        const letterCenterY = baselineY + 5 * yScale;
+
+        const isCapital = char >= 'A' && char <= 'Z';
+        const isThinMode = type === 'Slinky' || type === 'Pipe';
+        let longestIdx = 0;
+        if (isCapital && glyph.strokes.length > 1 && !isThinMode) {
+            let maxLen = 0;
+            glyph.strokes.forEach((s, idx) => {
+                if (s.length > maxLen) { maxLen = s.length; longestIdx = idx; }
+            });
+        }
+
+        const cosR = Math.cos(rotation), sinR = Math.sin(rotation);
+
+        for (let si = 0; si < glyph.strokes.length; si++) {
+            const stroke = glyph.strokes[si];
+            const isSecondary = isThinMode ? false
+                : (isDot(stroke) || isCrossbar(stroke)
+                    || (isCapital && glyph.strokes.length > 1 && si !== longestIdx));
+            const transformedPath = stroke.map(([x, y]) => {
+                let baseX = xOffset + (x - glyph.left) * scale;
+                let baseY = baselineY + y * yScale;
+
+                let dx = baseX - letterCenterX, dy = baseY - letterCenterY;
+                dx *= scaleVar; dy *= scaleVar;
+                const rx = dx * cosR - dy * sinR;
+                const ry = dx * sinR + dy * cosR;
+                baseX = letterCenterX + rx;
+                baseY = letterCenterY + ry + yWobble;
+
+                if (!isSecondary) { minY = Math.min(minY, baseY); maxY = Math.max(maxY, baseY); }
+                return [baseX, baseY];
+            });
+            transformedPath.isSecondary = isSecondary;
+            transformedPath.isDot = isDot(stroke);
+
+            if (isSecondary) { secondaryPaths.push(transformedPath); }
+            else { primaryPaths.push(transformedPath); }
+        }
+        xOffset += glyph.width * scale + extraSpacing;
+        letterIdx++;
+    }
+
+    const letterHeight = maxY - minY || canvasHeight * 0.4;
+    return { primary: primaryPaths, secondary: secondaryPaths, letterHeight };
+}
+
+function renderWord() {
+    const canvas = document.getElementById('wordCanvas');
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.fillStyle = BACKGROUNDS[state.bgIndex];
+    ctx.fillRect(0, 0, width, height);
+
+    if (!state.text.trim()) return;
+
+    const { type, spread } = state;
+    const decPairs = generateDecPairs(state.seed);
+    const startColor = decPairs[29];
+    const reverse = decPairs[30] < 128;
+
+    const isSlinky = type === 'Slinky' || type === 'Pipe';
+    const isPipe = type === 'Pipe';
+    const isBold = type === 'Bold';
+    const isSegmented = type === 'Ribbed';
+    const isFuzzy = type === 'Fuzzy';
+
+    const { primary, secondary, letterHeight } = buildWordPaths(state.text, type, width, height, decPairs);
+    const allPaths = [...primary, ...secondary];
+    if (allPaths.length === 0) return;
+
+    const effectiveH = letterHeight / 0.57;
+    const normalDiam = effectiveH / 13;
+    const boldDiam = effectiveH / 5;
+    const slinkyRingDiam = effectiveH / 8;
+    const pipeDiam = slinkyRingDiam * 1.8;
+    const ribbedDiam = effectiveH / 12;
+    const sw = effectiveH / 1200;
+
+    const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
+    const ribbedSteps = Math.round(80 * Math.max(1, div / 5));
+    const steps = isPipe ? 5 : isSlinky ? 5 : isFuzzy ? 200 : isBold ? 50 : isSegmented ? ribbedSteps : 80;
+
+    const rngBaseSeed = (Math.abs(state.seed) ^ 0xDEADBEEF) >>> 0;
+    let rng = createRng(rngBaseSeed);
+
+    const slinkySw = Math.max(sw * 2, 1.0);
+    const wordSw = Math.max(sw * 4, 2.0);
+    const slinkyDiam = effectiveH / 8;
+
+    let color = 0;
+
+    for (const pathPoints of allPaths) {
+        if (pathPoints.length < 2) continue;
+
+        const padded = [pathPoints[0], ...pathPoints, pathPoints[pathPoints.length - 1]];
+        const totalSegs = padded.length - 3;
+
+        const totalPathPoints = totalSegs * (steps + 1);
+        let pathPointIndex = 0;
+
+        for (let seg = 0; seg < totalSegs; seg++) {
+            const [p0, p1, p2, p3] = [padded[seg], padded[seg + 1], padded[seg + 2], padded[seg + 3]];
+
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const x = curvePoint(p0[0], p1[0], p2[0], p3[0], t);
+                const y = curvePoint(p0[1], p1[1], p2[1], p3[1], t);
+
+                const isEndpoint = pathPointIndex === 0 || pathPointIndex === totalPathPoints - 1;
+
+                const hue = reverse
+                    ? 255 - (((color / spread) + startColor) % 255)
+                    : (((color / spread) + startColor) % 255);
+                const [r, g, b] = hsbToRgb(hue, 255, 255);
+
+                if (isFuzzy) {
+                    const fuzzR = effectiveH / 13;
+                    const fuzzX = x + map(rng(), 0, 1, 0, fuzzR);
+                    const fuzzY = y + map(rng(), 0, 1, 0, fuzzR);
+                    const dist = Math.sqrt((x - fuzzX) ** 2 + (y - fuzzY) ** 2);
+                    if (dist < fuzzR * 1.1) {
+                        const particleSize = map(rng(), 0, 1, effectiveH / 100, effectiveH / 20);
+                        ctx.beginPath();
+                        ctx.arc(fuzzX, fuzzY, particleSize / 2, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(${r},${g},${b},${20/255})`;
+                        ctx.fill();
+                    }
+                } else {
+                    if (isSlinky) {
+                        if (isPipe) {
+                            ctx.beginPath();
+                            ctx.arc(x, y, pipeDiam / 2, 0, Math.PI * 2);
+                            if (isEndpoint) { ctx.fillStyle = 'black'; ctx.fill(); }
+                            ctx.strokeStyle = 'black';
+                            ctx.lineWidth = slinkySw;
+                            ctx.stroke();
+                        }
+
+                        ctx.beginPath();
+                        ctx.arc(x, y, slinkyDiam / 2, 0, Math.PI * 2);
+                        if (isEndpoint) { ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); }
+                        ctx.strokeStyle = `rgb(${r},${g},${b})`;
+                        ctx.lineWidth = slinkySw;
+                        ctx.stroke();
+                    } else {
+                        const diam = isBold ? boldDiam : normalDiam;
+                        ctx.beginPath();
+                        ctx.arc(x, y, diam / 2, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgb(${r},${g},${b})`;
+                        ctx.fill();
+                    }
+
+                    if (isSegmented && !isSlinky && !isBold) {
+                        if (i % div === 0 || i === 0 || i === steps - 1) {
+                            ctx.beginPath();
+                            ctx.arc(x, y, ribbedDiam / 2, 0, Math.PI * 2);
+                            ctx.fillStyle = `rgb(${decPairs[25]},${decPairs[25]},${decPairs[25]})`;
+                            ctx.fill();
+                        }
+                    }
+                }
+                color++;
+                pathPointIndex++;
+            }
+        }
+        rng = createRng(rngBaseSeed);
+    }
+}
+
+// ===========================================
+// RENDER BOTH + UI
+// ===========================================
+function renderAll() {
+    renderSquiggle();
+    renderWord();
+    updateTraits();
+}
+
+function updateTraits() {
+    const decPairs = generateDecPairs(state.seed);
+    const startColor = decPairs[29];
+    const segments = Math.floor(map(decPairs[26], 0, 255, 12, 20));
+    const [r1, g1, b1] = hsbToRgb(startColor, 255, 255);
+    const reverse = decPairs[30] < 128;
+    const ht = map(decPairs[27], 0, 255, 3, 4).toFixed(1);
+    const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
+
+    let extra = '';
+    if (state.type === 'Ribbed') extra = `<div class="trait"><span class="trait-label">Rib interval:</span> <span class="trait-val">${div}</span></div>`;
+
+    document.getElementById('traits').innerHTML = `
+        <div class="trait"><span class="trait-label">Type:</span> <span class="trait-val">${state.type}</span></div>
+        <div class="trait"><span class="trait-label">Spread:</span> <span class="trait-val">${state.spread}</span></div>
+        <div class="trait"><span class="trait-label">Segments:</span> <span class="trait-val">${segments}</span></div>
+        <div class="trait"><span class="trait-label">Amplitude:</span> <span class="trait-val">H/${ht}</span></div>
+        <div class="trait"><span class="trait-label">Reverse:</span> <span class="trait-val">${reverse ? 'Yes' : 'No'}</span></div>
+        <div class="trait"><span class="trait-label">Start:</span>
+            <span class="color-preview" style="background: rgb(${r1},${g1},${b1})"></span>
+        </div>
+        ${extra}
+    `;
+}
+
+// ===========================================
+// EVENT HANDLERS
+// ===========================================
+document.getElementById('textInput').addEventListener('input', (e) => {
+    state.text = e.target.value;
+    renderAll();
+});
+
+document.getElementById('seedInput').addEventListener('input', (e) => {
+    state.seed = parseInt(e.target.value) || 0;
+    renderAll();
+});
+
+document.getElementById('randWordBtn').addEventListener('click', () => {
+    state.text = WORDS[Math.floor(Math.random() * WORDS.length)];
+    document.getElementById('textInput').value = state.text;
+    renderAll();
+});
+
+const wordBtnsEl = document.getElementById('wordBtns');
+WORDS.forEach(word => {
+    const btn = document.createElement('button');
+    btn.className = 'btn' + (word === state.text ? ' active' : '');
+    btn.textContent = word;
+    btn.addEventListener('click', () => {
+        state.text = word;
+        document.getElementById('textInput').value = word;
+        wordBtnsEl.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderAll();
+    });
+    wordBtnsEl.appendChild(btn);
+});
+document.getElementById('textInput').addEventListener('input', () => {
+    wordBtnsEl.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+});
+
+document.getElementById('randSeedBtn').addEventListener('click', () => {
+    state.seed = Math.floor(Math.random() * 10000);
+    document.getElementById('seedInput').value = state.seed;
+    renderAll();
+});
+
+document.querySelectorAll('#typeBtns .btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#typeBtns .btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.type = btn.dataset.type;
+        if (state.type === 'Pipe' && state.bgIndex >= 5) {
+            state._savedBg = state.bgIndex;
+            state.bgIndex = 0;
+        } else if (state.type !== 'Pipe' && state._savedBg !== undefined) {
+            state.bgIndex = state._savedBg;
+            delete state._savedBg;
+        }
+        renderAll();
+    });
+});
+
+document.getElementById('spreadSlider').addEventListener('input', (e) => {
+    state.spread = parseInt(e.target.value);
+    document.getElementById('spreadLabel').textContent = state.spread;
+    renderAll();
+});
+
+document.getElementById('squiggleCanvas').addEventListener('click', () => {
+    state.bgIndex = (state.bgIndex + 1) % BACKGROUNDS.length;
+    renderAll();
+});
+document.getElementById('wordCanvas').addEventListener('click', () => {
+    state.bgIndex = (state.bgIndex + 1) % BACKGROUNDS.length;
+    renderAll();
+});
+
+// Initial render
+renderAll();
+</script>
+</body>
+</html>
