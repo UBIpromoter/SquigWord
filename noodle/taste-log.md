@@ -12,5 +12,9 @@
 - **Confirmed:** Per-letter transforms from decPairs (Y wobble ±10px, rotation ±4°, scale ±6%)
 - **Rejected:** Per-control-point path deformation (destroyed letter shapes completely)
 
+## Ribbed
+- **Confirmed:** Rainbow body (H/13) + gray OVERLAY (H/12) at rib intervals (Snowfro architecture). Scaled steps for high div: `steps = 200 × max(1, div/5)` keeps crescents thin at all rib intervals. Word renderer: `80 × max(1, div/5)`.
+- **Rejected:** Gray body + colored stroked rings (architecture backwards) · All two-pass approaches (sticker effect — gray tube + colored accents) · Scaled gray overlay size (didn't fix directional crescent erosion) · Cap div at 10 (loses Snowfro variety) · Mild step scaling div/8 (not aggressive enough)
+
 ## Scaling
 - **Confirmed:** Max height cap via maxHeightScale so 1-2 char text fits in canvas

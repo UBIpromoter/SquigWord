@@ -1,59 +1,56 @@
 # SquigWord Status
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-06 (evening)
 
 ## Current State
-Working file: `noodle/stroke-animation/squigword-integrated.html`
 
-## Render Types Progress
+Three working files:
+- `noodle/stroke-animation/squiggle-compare.html` — **comparison tool** (reference squiggle + SquigWord side-by-side)
+- `noodle/stroke-animation/squigword-integrated.html` — **standalone app** (full UI, animation, variation) — older render logic
+- `noodle/stroke-animation/ribbed-test.html` — **ribbed A/B test** (4 approaches side-by-side)
+
+The **compare file** has the most faithful Snowfro renderer. All ribbed fixes applied here.
+
+## What Changed Today (Feb 6)
+
+### Ribbed Type — Major Fix
+- **Root cause found:** High div (rib interval >10) causes crescent erosion — progressive draw order eats through gray overlay
+- **Fix: Step scaling with div** — `steps = 200 × max(1, div/5)` for reference, `80 × max(1, div/5)` for words
+- Philip tested 3 approaches via `ribbed-test.html`: cap div, aggressive steps (div/5), mild steps (div/8)
+- **Winner: Approach C** (aggressive `div/5`) — Philip confirmed "C is best, D next"
+- Ribbed now looks correct across all div values (3-20)
+
+### Rejected Approaches (Ribbed)
+- Two-pass rendering (gray tube + colored accents) — all variants produced "sticker effect"
+- Scaled gray overlay size — didn't fix directional crescent erosion
+- Cap div at 10 — loses Snowfro variety
+- Higher resolution canvases — crescents scale proportionally
+
+### P Descender Fix
+- Hershey 'p' descender shortened from (-11, 21) to (-8, 17) — was ~20% too long and swung too far left
+
+### Earlier Today (from previous session)
+- Built `squiggle-compare.html` with Snowfro's actual Chromie Squiggles code
+- Ported exact source from `chromie-squiggles.com/source-code`
+- All 6 render types working: Normal, Bold, Slinky, Pipe, Fuzzy, Ribbed
+- effectiveH ratio system, endpoint fill fix, auto-fit text
+
+## Render Type Status (compare file)
 
 | Type | Status | Notes |
 |------|--------|-------|
-| Normal | Done | Smooth gradient rope, unchanged |
-| Bold | Done | Big overlapping circles, unchanged |
-| Slinky | Improved | Overlapping ring mesh with min-distance spacing. Looks good on dark. |
-| Pipe | Improved | Color-first + thin dark stroke outline. Philip hasn't reviewed yet. |
-| Fuzzy | Improved | Gaussian-ish particle spread, soft cloud/watercolor effect |
-| Ribbed | Improved | Two-pass: colored circles first, gray holes punched on top |
+| Normal | Good | Matches reference — thick gradient rope |
+| Bold | Good | Big overlapping blobs |
+| Slinky | Good | Clean rings forming readable text |
+| Pipe | Good (light bg) | Auto-switches to white bg |
+| Fuzzy | Good | Scattered particle cloud, readable |
+| Ribbed | Good | Step scaling fixes high-div. Philip approved. |
 
-## What Changed This Session (Feb 5)
+## TODO
 
-### Slinky
-- Ring size: H/13 → H/9 (larger, per spec)
-- Stroke weight: 0.5 → 2px
-- Steps: 6 → 8 per segment
-- Added **minimum-distance spacing** (`circleSize * 0.35`) — prevents rings from piling up in tight curves while staying evenly spaced in straights
-- No taper — constant ring size for uniform spring look
-
-### Pipe
-- **Flipped the draw order**: was black fill first (dominated), now colored fill + thin dark stroke on top
-- Black alpha: 0.7 → 0.3
-- Circle size: H/7 → H/10
-- Steps: 10 → 30
-
-### Fuzzy
-- Particles per step: 3 → 5
-- Distribution: uniform random → gaussian-ish (sum of two randoms)
-- Spread: circleSize * 2 → circleSize * 1.5 (tighter)
-- Alpha: fixed 0.15 → varied 0.08-0.20
-- Particle size: 1-5 → 2-7
-
-### Ribbed
-- **Two-pass rendering** (the key fix):
-  - Pass 1: Draw colored circles exactly like Normal
-  - Pass 2: Draw gray holes ON TOP at intervals (collected during pass 1)
-- Previously: skipped every 3rd circle (invisible difference from Normal)
-- Now: visible gray dots breaking up the rainbow rope
-
-## Philip Has NOT Reviewed
-- All four types were improved but Philip hasn't given taste feedback yet
-- Pipe especially needs his eyes — the dark outlines give depth but may need tuning
-- Slinky min-distance threshold may need adjustment
-- Ribbed gray value varies by seed — some seeds give nearly-black holes that create a neon-outline effect on dark backgrounds (could be a feature or a bug depending on taste)
-
-## Still TODO
-- Philip's taste review of all render types
-- Complex capitals (R) have overlapping strokes — may need font cleanup
-- Endpoint caps not implemented (spec calls for filled circles at path start/end)
-- Animation needs testing with new render types
-- Different seed testing across all types
+- [ ] Port Snowfro-faithful renderer from compare file → integrated file
+- [ ] Word ribbed rendering at small scales (moiré/blending when text is long)
+- [ ] Endpoint caps (filled circles at word start/end)
+- [ ] Complex capitals cleanup
+- [ ] Animation testing with new render types
+- [ ] Multi-seed testing across all types

@@ -115,11 +115,11 @@
         <div class="canvas-pair">
             <div class="canvas-wrap">
                 <div class="canvas-label">Reference Squiggle (Snowfro)</div>
-                <canvas id="squiggleCanvas" width="1800" height="1200"></canvas>
+                <canvas id="squiggleCanvas" width="900" height="600"></canvas>
             </div>
             <div class="canvas-wrap">
                 <div class="canvas-label">SquigWord</div>
-                <canvas id="wordCanvas" width="1800" height="1200"></canvas>
+                <canvas id="wordCanvas" width="900" height="600"></canvas>
             </div>
         </div>
         <div class="panel">
@@ -268,8 +268,9 @@ function renderSquiggle() {
     // Ribbed interval
     const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
 
-    // Steps per segment (exactly as original)
-    const steps = isSlinky ? 50 : isFuzzy ? 1000 : 200;
+    // Steps per segment — ribbed scales with div to keep crescents thin
+    const ribbedSteps = Math.round(200 * Math.max(1, div / 5));
+    const steps = isSlinky ? 50 : isFuzzy ? 1000 : isSegmented ? ribbedSteps : 200;
 
     // Background
     ctx.fillStyle = BACKGROUNDS[state.bgIndex];
@@ -354,26 +355,6 @@ function renderSquiggle() {
                     ctx.strokeStyle = `rgb(${r},${g},${b})`;
                     ctx.lineWidth = sw;
                     ctx.stroke();
-                } else if (isSegmented) {
-                    // Ribbed: gray filled body at EVERY step, colored rings at intervals.
-                    // Real Chromie Squiggles ribbed = gray Normal body + colored slinky accents.
-                    // Gray body (H/12, slightly larger than Normal)
-                    ctx.beginPath();
-                    ctx.arc(x, y, (height / 12) / 2, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgb(${decPairs[25]},${decPairs[25]},${decPairs[25]})`;
-                    ctx.fill();
-                    // Colored stroked rings at rib intervals
-                    if (i % div === 0 || i === 0 || i === steps - 1) {
-                        ctx.beginPath();
-                        ctx.arc(x, y, (height / 13) / 2, 0, Math.PI * 2);
-                        if (i === 0 || i === steps - 1) {
-                            ctx.fillStyle = `rgb(${r},${g},${b})`;
-                            ctx.fill();
-                        }
-                        ctx.strokeStyle = `rgb(${r},${g},${b})`;
-                        ctx.lineWidth = Math.max(sw * 4, 2.0);  // thicker for visibility against gray body
-                        ctx.stroke();
-                    }
                 } else {
                     // Normal/Bold: filled circles, no stroke
                     const diam = isBold ? height / 5 : height / 13;
@@ -381,6 +362,16 @@ function renderSquiggle() {
                     ctx.arc(x, y, diam / 2, 0, Math.PI * 2);
                     ctx.fillStyle = `rgb(${r},${g},${b})`;
                     ctx.fill();
+                }
+
+                // Ribbed: gray dots at intervals (on top of normal circles)
+                if (isSegmented && !isSlinky && !isBold) {
+                    if (i % div === 0 || i === 0 || i === steps - 1) {
+                        ctx.beginPath();
+                        ctx.arc(x, y, (height / 12) / 2, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgb(${decPairs[25]},${decPairs[25]},${decPairs[25]})`;
+                        ctx.fill();
+                    }
                 }
             }
             color++;
@@ -409,7 +400,7 @@ const HERSHEY_RAW = {
     'm': 'E^EVGSIRJSJTIXH[ RIXJVLSNRPRQSQTPXO[ RPXQVSSURWRXSXUWXWZX[Y[[Z\\Y^V',
     'n': 'J\\JVLSNROSOTNXM[ RNXOVQSSRURVSVUUXUZV[W[YZZY\\V',
     'o': 'LZRRPRNSMTLVLXMZO[Q[SZTYUWUUTSRRQSQURWTXWXYWZV',
-    'p': 'KZKVMSNQMUGg RMUNSPRRRTSUUUWTYSZQ[ RMZO[R[UZWYZV',
+    'p': 'KZKVMSNQMUJc RMUNSPRRRTSUUUWTYSZQ[ RMZO[R[UZWYZV',
     'q': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZ RVRUUSZPaOdOfPgRfScS\\U[XY[V',
     'r': 'MZMVOSPQPSSSTTTVSYSZT[U[WZXYZV',
     's': 'NYNVPSQQQSSVTXTZR[ RNZP[T[VZWYYV',
@@ -655,10 +646,9 @@ function renderWord() {
     // Ribbed parameters from hash (same as reference)
     const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
 
-    // Steps per segment — target ~800 total rings to match reference density.
-    // Reference: ~16 segs × 50 steps = ~800 rings across one long wave.
-    // Letters: ~167 segs, so 800/167 ≈ 5 steps per segment.
-    const steps = isPipe ? 5 : isSlinky ? 5 : isFuzzy ? 200 : isBold ? 50 : 80;
+    // Steps per segment — ribbed scales with div to keep crescents thin
+    const ribbedSteps = Math.round(80 * Math.max(1, div / 5));
+    const steps = isPipe ? 5 : isSlinky ? 5 : isFuzzy ? 200 : isBold ? 50 : isSegmented ? ribbedSteps : 80;
 
     // RNG for fuzzy
     const rngBaseSeed = (Math.abs(state.seed) ^ 0xDEADBEEF) >>> 0;
@@ -741,24 +731,6 @@ function renderWord() {
                         ctx.strokeStyle = `rgb(${r},${g},${b})`;
                         ctx.lineWidth = slinkySw;
                         ctx.stroke();
-                    } else if (isSegmented) {
-                        // Ribbed: gray body + colored ring accents (matching real Chromie Squiggles)
-                        ctx.beginPath();
-                        ctx.arc(x, y, ribbedDiam / 2, 0, Math.PI * 2);
-                        ctx.fillStyle = `rgb(${decPairs[25]},${decPairs[25]},${decPairs[25]})`;
-                        ctx.fill();
-                        // Colored rings at rib intervals
-                        if (i % div === 0 || i === 0 || i === steps - 1) {
-                            ctx.beginPath();
-                            ctx.arc(x, y, normalDiam / 2, 0, Math.PI * 2);
-                            if (isEndpoint) {
-                                ctx.fillStyle = `rgb(${r},${g},${b})`;
-                                ctx.fill();
-                            }
-                            ctx.strokeStyle = `rgb(${r},${g},${b})`;
-                            ctx.lineWidth = Math.max(slinkySw * 2, 2.0);  // thicker for rib visibility
-                            ctx.stroke();
-                        }
                     } else {
                         // Normal/Bold: filled circles
                         const diam = isBold ? boldDiam : normalDiam;
@@ -766,6 +738,16 @@ function renderWord() {
                         ctx.arc(x, y, diam / 2, 0, Math.PI * 2);
                         ctx.fillStyle = `rgb(${r},${g},${b})`;
                         ctx.fill();
+                    }
+
+                    // Ribbed: draw gray dots INLINE (same as original)
+                    if (isSegmented && !isSlinky && !isBold) {
+                        if (i % div === 0 || i === 0 || i === steps - 1) {
+                            ctx.beginPath();
+                            ctx.arc(x, y, ribbedDiam / 2, 0, Math.PI * 2);
+                            ctx.fillStyle = `rgb(${decPairs[25]},${decPairs[25]},${decPairs[25]})`;
+                            ctx.fill();
+                        }
                     }
                 }
                 color++;
