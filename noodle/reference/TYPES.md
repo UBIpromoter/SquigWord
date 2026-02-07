@@ -53,4 +53,4 @@ See images in this folder. All sourced from Art Blocks CDN.
 | Slinky | None (transparent) | Colored stroked rings |
 | Pipe | Black stroked rings (H/7) | Colored stroked rings (H/13) |
 | Fuzzy | None | Scattered colored particles |
-| Ribbed | **Gray filled circles** | **Colored stroked rings** |
+| Ribbed | **Rainbow filled circles (H/13)** | **Gray filled overlay (H/12, LARGER) at intervals — masks rainbow** |

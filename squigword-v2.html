@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SquigWord vs Real Squiggle</title>
+    <title>SquigWord v2</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -24,9 +24,11 @@
             color: var(--text);
             min-height: 100vh;
         }
-        .app { max-width: 720px; width: 100%; margin: 0 auto; padding: 16px; }
+        .app { max-width: 1280px; width: 100%; margin: 0 auto; padding: 16px; }
         h1 { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-        .canvas-pair { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+        .layout { display: flex; gap: 12px; align-items: flex-start; }
+        .col-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+        .col-right { flex: 1; min-width: 0; }
         .canvas-wrap {
             background: var(--card);
             border: 1px solid var(--border);
@@ -48,35 +50,34 @@
             padding: 2px 8px;
             border-radius: 4px;
         }
-        /* Preserve 3:2 aspect ratio — no distortion */
         canvas { width: 100%; aspect-ratio: 3/2; display: block; border-radius: 6px; }
         .panel {
             background: var(--card);
             border: 1px solid var(--border);
             border-radius: 10px;
-            padding: 16px;
+            padding: 14px 16px;
         }
-        .field-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-end; }
+        .field-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-end; }
         .field { flex: 1; min-width: 0; }
-        .field-label { display: block; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .field-label { display: block; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
         input[type="text"], input[type="number"] {
             background: var(--input);
             border: 1px solid var(--border);
             border-radius: 6px;
-            padding: 10px 12px;
-            font-size: 16px;
+            padding: 8px 10px;
+            font-size: 15px;
             font-family: inherit;
             color: var(--text);
             outline: none;
             width: 100%;
         }
         input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
-        input[type="number"] { width: 90px; font-family: 'JetBrains Mono', monospace; text-align: center; font-size: 14px; }
-        .btn-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        input[type="number"] { width: 80px; font-family: 'JetBrains Mono', monospace; text-align: center; font-size: 13px; }
+        .btn-row { display: flex; flex-wrap: wrap; gap: 5px; }
         .btn {
-            padding: 8px 14px;
+            padding: 6px 11px;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
             font-family: inherit;
             cursor: pointer;
@@ -88,79 +89,83 @@
         .btn:hover { background: var(--bg); color: var(--text); }
         .btn.active { background: var(--accent); border-color: var(--accent); color: white; }
         .icon-btn {
-            width: 38px; height: 38px;
+            width: 34px; height: 34px;
             border-radius: 6px;
             border: 1px solid var(--border);
             background: var(--card);
             color: var(--muted);
             cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            font-size: 16px;
+            font-size: 15px;
         }
         .icon-btn:hover { background: var(--glow); border-color: var(--accent); color: var(--text); }
-        .slider-group { display: flex; align-items: center; gap: 10px; }
-        .slider-group label { font-size: 11px; color: var(--muted); min-width: 55px; }
+        .slider-group { display: flex; align-items: center; gap: 8px; }
+        .slider-group label { font-size: 10px; color: var(--muted); min-width: 50px; }
         .slider-group input[type="range"] { flex: 1; height: 4px; -webkit-appearance: none; background: var(--border); border-radius: 2px; }
-        .slider-group input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
-        .slider-group span { font-size: 11px; color: var(--dim); min-width: 24px; text-align: right; font-family: 'JetBrains Mono', monospace; }
-        .traits { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); padding: 10px 0; border-top: 1px solid var(--border); margin-top: 12px; }
-        .trait { display: flex; align-items: center; gap: 5px; }
+        .slider-group input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+        .slider-group span { font-size: 11px; color: var(--dim); min-width: 22px; text-align: right; font-family: 'JetBrains Mono', monospace; }
+        .traits { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: var(--muted); padding: 8px 0 0; border-top: 1px solid var(--border); margin-top: 10px; }
+        .trait { display: flex; align-items: center; gap: 4px; }
         .trait-val { font-weight: 600; color: var(--text); }
-        .color-preview { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); }
+        .color-preview { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border); }
     </style>
 </head>
 <body>
     <div class="app">
-        <h1>Squiggle Comparison — Real vs SquigWord</h1>
-        <div class="canvas-pair">
-            <div class="canvas-wrap">
-                <div class="canvas-label">Reference Squiggle (Snowfro)</div>
-                <canvas id="squiggleCanvas" width="900" height="600"></canvas>
-            </div>
-            <div class="canvas-wrap">
-                <div class="canvas-label">SquigWord</div>
-                <canvas id="wordCanvas" width="900" height="600"></canvas>
-            </div>
-        </div>
-        <div class="panel">
-            <div class="field-row">
-                <div class="field">
-                    <label class="field-label">Text</label>
-                    <div style="display:flex;gap:6px;">
-                        <input type="text" id="textInput" value="Squiggles" maxlength="20" spellcheck="false">
-                        <button class="icon-btn" id="randWordBtn" title="Random word">↻</button>
+        <h1>SquigWord v2</h1>
+        <div class="layout">
+            <div class="col-left">
+                <div class="canvas-wrap">
+                    <div class="canvas-label">SquigWord</div>
+                    <canvas id="wordCanvas" width="900" height="600"></canvas>
+                </div>
+                <div class="panel">
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="field-label">Text</label>
+                            <div style="display:flex;gap:6px;">
+                                <input type="text" id="textInput" value="Squiggles" maxlength="20" spellcheck="false">
+                                <button class="icon-btn" id="randWordBtn" title="Random word">&#8635;</button>
+                            </div>
+                        </div>
+                        <div class="field" style="flex:0 0 auto;">
+                            <label class="field-label">Seed</label>
+                            <div style="display:flex;gap:6px;">
+                                <input type="number" id="seedInput" value="42">
+                                <button class="icon-btn" id="randSeedBtn" title="Random seed">&#8635;</button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="field" style="flex:0 0 auto;">
-                    <label class="field-label">Seed</label>
-                    <div style="display:flex;gap:6px;">
-                        <input type="number" id="seedInput" value="42">
-                        <button class="icon-btn" id="randSeedBtn" title="Random seed">↻</button>
+                    <div style="margin-bottom: 8px;">
+                        <div class="btn-row" id="wordBtns"></div>
                     </div>
+                    <div style="margin-bottom: 8px;">
+                        <label class="field-label">Type</label>
+                        <div class="btn-row" id="typeBtns">
+                            <button class="btn active" data-type="Normal">Normal</button>
+                            <button class="btn" data-type="Bold">Bold</button>
+                            <button class="btn" data-type="Slinky">Slinky</button>
+                            <button class="btn" data-type="Pipe">Pipe</button>
+                            <button class="btn" data-type="Fuzzy">Fuzzy</button>
+                            <button class="btn" data-type="Ribbed">Ribbed</button>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        <div class="slider-group">
+                            <label>Spread</label>
+                            <input type="range" id="spreadSlider" min="1" max="50" value="15">
+                            <span id="spreadLabel">15</span>
+                        </div>
+                    </div>
+                    <div class="traits" id="traits"></div>
                 </div>
             </div>
-            <div style="margin-bottom: 12px;">
-                <div class="btn-row" id="wordBtns"></div>
-            </div>
-            <div style="margin-bottom: 12px;">
-                <label class="field-label">Type</label>
-                <div class="btn-row" id="typeBtns">
-                    <button class="btn active" data-type="Normal">Normal</button>
-                    <button class="btn" data-type="Bold">Bold</button>
-                    <button class="btn" data-type="Slinky">Slinky</button>
-                    <button class="btn" data-type="Pipe">Pipe</button>
-                    <button class="btn" data-type="Fuzzy">Fuzzy</button>
-                    <button class="btn" data-type="Ribbed">Ribbed</button>
+            <div class="col-right">
+                <div class="canvas-wrap">
+                    <div class="canvas-label">Reference Squiggle (Snowfro)</div>
+                    <canvas id="squiggleCanvas" width="900" height="600"></canvas>
                 </div>
             </div>
-            <div style="margin-bottom: 8px;">
-                <div class="slider-group">
-                    <label>Spread</label>
-                    <input type="range" id="spreadSlider" min="1" max="50" value="15">
-                    <span id="spreadLabel">15</span>
-                </div>
-            </div>
-            <div class="traits" id="traits"></div>
         </div>
     </div>
 
@@ -240,18 +245,15 @@ const WORDS = ['Squiggles', 'Hello', 'Magic', 'Rainbow', 'Groovy', 'Jazzy', 'Zig
 // ===========================================
 // REFERENCE SQUIGGLE — Exact Snowfro port
 // ===========================================
-// p5.js circle(x,y,d) uses DIAMETER. Canvas arc(x,y,r) uses RADIUS.
-// Every size from the original is a diameter; we halve for arc().
 
 function renderSquiggle() {
     const canvas = document.getElementById('squiggleCanvas');
     const ctx = canvas.getContext('2d');
-    const width = canvas.width;   // 900
-    const height = canvas.height; // 600
+    const width = canvas.width;
+    const height = canvas.height;
 
     const decPairs = generateDecPairs(state.seed);
 
-    // --- Trait extraction (exactly as original) ---
     const startColor = decPairs[29];
     const reverse = decPairs[30] < 128;
     const isSlinky = state.type === 'Slinky' || state.type === 'Pipe';
@@ -260,33 +262,24 @@ function renderSquiggle() {
     const isSegmented = state.type === 'Ribbed';
     const isFuzzy = state.type === 'Fuzzy';
 
-    // --- Setup (exactly as original) ---
     const segments = Math.floor(map(decPairs[26], 0, 255, 12, 20));
     const ht = map(decPairs[27], 0, 255, 3, 4);
     const spread = state.spread;
-    const wt = 2;   // squiggle width = canvas width / 2
+    const wt = 2;
     const amp = 1;
-    const sw = height / 1200; // strokeWeight
+    const sw = height / 1200;
 
-    // Ribbed interval
     const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
-
-    // Steps per segment — ribbed scales with div to keep crescents thin
     const ribbedSteps = Math.round(200 * Math.max(1, div / 5));
     const steps = isSlinky ? 50 : isFuzzy ? 1000 : isSegmented ? ribbedSteps : 200;
 
-    // Background
     ctx.fillStyle = BACKGROUNDS[state.bgIndex];
     ctx.fillRect(0, 0, width, height);
-
-    // Global stroke weight for non-filled drawing
     ctx.lineWidth = sw;
 
-    // RNG for fuzzy (reset per segment as original does)
     const rngBaseSeed = (Math.abs(state.seed) ^ 0xDEADBEEF) >>> 0;
     let rng = createRng(rngBaseSeed);
 
-    // Translate: center squiggle in canvas
     const offsetX = (width / 2) - (width / wt / 2);
     const offsetY = height / 2;
 
@@ -296,7 +289,6 @@ function renderSquiggle() {
         for (let i = 0; i <= steps; i++) {
             const t = i / steps;
 
-            // X: evenly spaced control points along horizontal
             const x = curvePoint(
                 width / segments / wt * j,
                 width / segments / wt * (j + 1),
@@ -305,7 +297,6 @@ function renderSquiggle() {
                 t
             ) + offsetX;
 
-            // Y: hash-driven vertical displacement
             const y = curvePoint(
                 map(decPairs[j], 0, 255, -height / ht, height / ht) * amp,
                 map(decPairs[j + 1], 0, 255, -height / ht, height / ht) * amp,
@@ -314,14 +305,12 @@ function renderSquiggle() {
                 t
             ) + offsetY;
 
-            // Color (exactly as original)
             const hue = reverse
                 ? 255 - (((color / spread) + startColor) % 255)
                 : (((color / spread) + startColor) % 255);
             const [r, g, b] = hsbToRgb(hue, 255, 255);
 
             if (isFuzzy) {
-                // Fuzzy: scattered particles with distance check
                 const fuzzX = x + map(rng(), 0, 1, 0, height / 10);
                 const fuzzY = y + map(rng(), 0, 1, 0, height / 10);
                 const dist = Math.sqrt((x - fuzzX) ** 2 + (y - fuzzY) ** 2);
@@ -333,33 +322,23 @@ function renderSquiggle() {
                     ctx.fill();
                 }
             } else {
-                // Pipe: black outline ring UNDER colored ring
                 if (isSlinky && isPipe) {
                     ctx.beginPath();
                     ctx.arc(x, y, (height / 7) / 2, 0, Math.PI * 2);
-                    if (i === 0 || i === steps - 1) {
-                        ctx.fillStyle = 'black';
-                        ctx.fill();
-                    }
+                    if (i === 0 || i === steps - 1) { ctx.fillStyle = 'black'; ctx.fill(); }
                     ctx.strokeStyle = 'black';
                     ctx.lineWidth = sw;
                     ctx.stroke();
                 }
 
-                // Slinky (includes pipe's colored ring): stroked rings
                 if (isSlinky) {
                     ctx.beginPath();
                     ctx.arc(x, y, (height / 13) / 2, 0, Math.PI * 2);
-                    if (i === 0 || i === steps - 1) {
-                        // Endpoint caps: filled
-                        ctx.fillStyle = `rgb(${r},${g},${b})`;
-                        ctx.fill();
-                    }
+                    if (i === 0 || i === steps - 1) { ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); }
                     ctx.strokeStyle = `rgb(${r},${g},${b})`;
                     ctx.lineWidth = sw;
                     ctx.stroke();
                 } else {
-                    // Normal/Bold: filled circles, no stroke
                     const diam = isBold ? height / 5 : height / 13;
                     ctx.beginPath();
                     ctx.arc(x, y, diam / 2, 0, Math.PI * 2);
@@ -367,7 +346,6 @@ function renderSquiggle() {
                     ctx.fill();
                 }
 
-                // Ribbed: gray dots at intervals (on top of normal circles)
                 if (isSegmented && !isSlinky && !isBold) {
                     if (i % div === 0 || i === 0 || i === steps - 1) {
                         ctx.beginPath();
@@ -379,7 +357,6 @@ function renderSquiggle() {
             }
             color++;
         }
-        // Reset RNG seed per segment (exactly as original)
         rng = createRng(rngBaseSeed);
     }
 }
@@ -488,17 +465,15 @@ function isCrossbar(stroke) {
 }
 
 // ===========================================
-// SQUIGWORD RENDERER — Matched to Snowfro's logic
+// SQUIGWORD RENDERER
 // ===========================================
 
 function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
-    // Auto-fit: compute scale so word fills ~75% of canvas width
     const primaryPaths = [];
     const secondaryPaths = [];
 
-    // First pass: measure total width at scale=1
     let rawWidth = 0;
-    const rawSpacing = 1.5; // extra spacing per char in font units
+    const rawSpacing = 1.5;
     for (const char of text) {
         const glyph = FONT[char];
         if (!glyph) continue;
@@ -507,19 +482,14 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
     rawWidth -= rawSpacing;
     if (rawWidth <= 0) return { primary: [], secondary: [] };
 
-    // Scale to fit 75% of canvas width, but cap so height stays in bounds.
-    // Hershey glyphs span ~30 font-units vertically (ascenders to descenders).
-    // Without a cap, 1-2 chars blow up to fill the width and overflow vertically.
     const maxWidth = canvasWidth * 0.75;
-    const maxHeightScale = (canvasHeight * 0.65) / (30 * 0.85); // fit 65% of canvas height
+    const maxHeightScale = (canvasHeight * 0.65) / (30 * 0.85);
     const scale = Math.min(maxWidth / rawWidth, maxHeightScale);
     const extraSpacing = rawSpacing * scale;
 
-    // Vertical: center in canvas, baseline at ~45%
     const baselineY = canvasHeight * 0.42;
-    const yScale = scale * 0.85; // slightly compress vertically for aesthetics
+    const yScale = scale * 0.85;
 
-    // Compute actual total width for centering
     let totalWidth = 0;
     for (const char of text) {
         const glyph = FONT[char];
@@ -530,13 +500,8 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
 
     let xOffset = (canvasWidth - totalWidth) / 2;
 
-    // Track rendered letter height for circle sizing
     let minY = Infinity, maxY = -Infinity;
 
-    // --- Seed-driven per-letter shape variation ---
-    // Uses decPairs (hash of seed) so each seed produces a unique word shape.
-    // decPairs[0-9] → Y offset, [10-19] → rotation, [20-21] → scale.
-    // Amounts are subtle: ±10px wobble, ±4° tilt, ±6% size.
     let letterIdx = 0;
 
     for (const char of text) {
@@ -545,18 +510,13 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
 
         if (char === ' ') { xOffset += glyph.width * scale; continue; }
 
-        // Per-letter variation from seed hash
         const yWobble = decPairs ? map(decPairs[letterIdx % 10], 0, 255, -10, 10) : 0;
-        const rotation = decPairs ? map(decPairs[10 + (letterIdx % 10)], 0, 255, -0.07, 0.07) : 0; // ~±4°
+        const rotation = decPairs ? map(decPairs[10 + (letterIdx % 10)], 0, 255, -0.07, 0.07) : 0;
         const scaleVar = decPairs ? map(decPairs[20 + (letterIdx % 2)], 0, 255, 0.94, 1.06) : 1;
 
-        // Letter center for rotation/scale transforms
         const letterCenterX = xOffset + (glyph.width / 2) * scale;
-        const letterCenterY = baselineY + 5 * yScale; // approx vertical center of lowercase
+        const letterCenterY = baselineY + 5 * yScale;
 
-        // For capitals with multiple strokes in thick-rope modes (Normal/Bold):
-        // only the longest stroke becomes primary — calligraphic crossings are messy
-        // with thick fills. In thin-stroke modes (Slinky/Pipe), all strokes are fine.
         const isCapital = char >= 'A' && char <= 'Z';
         const isThinMode = type === 'Slinky' || type === 'Pipe';
         let longestIdx = 0;
@@ -578,7 +538,6 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
                 let baseX = xOffset + (x - glyph.left) * scale;
                 let baseY = baselineY + y * yScale;
 
-                // Apply seed variation: scale, rotate around letter center, then wobble
                 let dx = baseX - letterCenterX, dy = baseY - letterCenterY;
                 dx *= scaleVar; dy *= scaleVar;
                 const rx = dx * cosR - dy * sinR;
@@ -599,7 +558,6 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
         letterIdx++;
     }
 
-    // Store effective letter height for proportional circle sizing
     const letterHeight = maxY - minY || canvasHeight * 0.4;
     return { primary: primaryPaths, secondary: secondaryPaths, letterHeight };
 }
@@ -607,8 +565,8 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
 function renderWord() {
     const canvas = document.getElementById('wordCanvas');
     const ctx = canvas.getContext('2d');
-    const width = canvas.width;   // 900
-    const height = canvas.height; // 600
+    const width = canvas.width;
+    const height = canvas.height;
 
     ctx.fillStyle = BACKGROUNDS[state.bgIndex];
     ctx.fillRect(0, 0, width, height);
@@ -627,46 +585,26 @@ function renderWord() {
     const isFuzzy = type === 'Fuzzy';
 
     const { primary, secondary, letterHeight } = buildWordPaths(state.text, type, width, height, decPairs);
-    // All paths rendered in main loop. Slinky's thin strokes handle crossings fine.
-    // Capital secondary strokes are de-emphasized by being shorter/smaller.
     const allPaths = [...primary, ...secondary];
     if (allPaths.length === 0) return;
 
-    // --- Sizes: same ratios as Snowfro, but relative to letter height ---
-    // In original, wave occupies ~57% of canvas height. Circle diam = H/13.
-    // So circle/waveHeight ratio ≈ (H/13) / (H*0.57) ≈ 1/7.4
-    // We use the same ratio against our letterHeight.
-    // Effective H = letterHeight / 0.57 (as if letter height were the wave amplitude)
     const effectiveH = letterHeight / 0.57;
     const normalDiam = effectiveH / 13;
     const boldDiam = effectiveH / 5;
-    // Pipe outer ring: proportional to slinky ring (1.8× for black frame).
-    const slinkyRingDiam = effectiveH / 8;  // computed here for pipe sizing
+    const slinkyRingDiam = effectiveH / 8;
     const pipeDiam = slinkyRingDiam * 1.8;
     const ribbedDiam = effectiveH / 12;
     const sw = effectiveH / 1200;
 
-    // Ribbed parameters from hash (same as reference)
     const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
-
-    // Steps per segment — ribbed scales with div to keep crescents thin
     const ribbedSteps = Math.round(80 * Math.max(1, div / 5));
     const steps = isPipe ? 5 : isSlinky ? 5 : isFuzzy ? 200 : isBold ? 50 : isSegmented ? ribbedSteps : 80;
 
-    // RNG for fuzzy
     const rngBaseSeed = (Math.abs(state.seed) ^ 0xDEADBEEF) >>> 0;
     let rng = createRng(rngBaseSeed);
 
-    // Stroke weight for slinky/pipe — visible individual rings.
-    // Reference: 0.5px on 46px rings. Our rings are smaller (~27px),
-    // and with fewer rings each one needs to be individually readable.
     const slinkySw = Math.max(sw * 2, 1.0);
-    // Other types (normal etc) use thicker strokes for visibility
     const wordSw = Math.max(sw * 4, 2.0);
-
-    // Slinky ring size: bigger than normal for tube effect.
-    // Reference: 46px rings on 600px canvas (H/13). Our normalDiam = 20px — too small.
-    // effectiveH/8 ≈ 32px — 60% bigger, lush tube without obliterating letters.
     const slinkyDiam = effectiveH / 8;
 
     let color = 0;
@@ -677,7 +615,6 @@ function renderWord() {
         const padded = [pathPoints[0], ...pathPoints, pathPoints[pathPoints.length - 1]];
         const totalSegs = padded.length - 3;
 
-        // Track total points in this path for true endpoint detection
         const totalPathPoints = totalSegs * (steps + 1);
         let pathPointIndex = 0;
 
@@ -689,19 +626,14 @@ function renderWord() {
                 const x = curvePoint(p0[0], p1[0], p2[0], p3[0], t);
                 const y = curvePoint(p0[1], p1[1], p2[1], p3[1], t);
 
-                // True path endpoints (not segment boundaries)
                 const isEndpoint = pathPointIndex === 0 || pathPointIndex === totalPathPoints - 1;
 
-                // Color (same system as reference)
                 const hue = reverse
                     ? 255 - (((color / spread) + startColor) % 255)
                     : (((color / spread) + startColor) % 255);
                 const [r, g, b] = hsbToRgb(hue, 255, 255);
 
                 if (isFuzzy) {
-                    // Fuzzy: letter-proportional scatter so cloud hugs the path.
-                    // Reference uses height/10 for a full-canvas wave; we use effectiveH/20
-                    // so the cloud is tight enough to read letter shapes through the fur.
                     const fuzzR = effectiveH / 13;
                     const fuzzX = x + map(rng(), 0, 1, 0, fuzzR);
                     const fuzzY = y + map(rng(), 0, 1, 0, fuzzR);
@@ -714,10 +646,7 @@ function renderWord() {
                         ctx.fill();
                     }
                 } else {
-                    // Slinky/Pipe: every ring drawn, no min-distance filtering.
-                    // Dense thin rings overlap to form a transparent tube.
                     if (isSlinky) {
-                        // Pipe: black outline ring UNDER colored ring
                         if (isPipe) {
                             ctx.beginPath();
                             ctx.arc(x, y, pipeDiam / 2, 0, Math.PI * 2);
@@ -727,7 +656,6 @@ function renderWord() {
                             ctx.stroke();
                         }
 
-                        // Colored ring — stroked, with endpoint fills matching reference
                         ctx.beginPath();
                         ctx.arc(x, y, slinkyDiam / 2, 0, Math.PI * 2);
                         if (isEndpoint) { ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill(); }
@@ -735,7 +663,6 @@ function renderWord() {
                         ctx.lineWidth = slinkySw;
                         ctx.stroke();
                     } else {
-                        // Normal/Bold: filled circles
                         const diam = isBold ? boldDiam : normalDiam;
                         ctx.beginPath();
                         ctx.arc(x, y, diam / 2, 0, Math.PI * 2);
@@ -743,7 +670,6 @@ function renderWord() {
                         ctx.fill();
                     }
 
-                    // Ribbed: draw gray dots INLINE (same as original)
                     if (isSegmented && !isSlinky && !isBold) {
                         if (i % div === 0 || i === 0 || i === steps - 1) {
                             ctx.beginPath();
@@ -757,10 +683,8 @@ function renderWord() {
                 pathPointIndex++;
             }
         }
-        // Reset RNG per path (analogous to per-segment reset)
         rng = createRng(rngBaseSeed);
     }
-
 }
 
 // ===========================================
@@ -816,7 +740,6 @@ document.getElementById('randWordBtn').addEventListener('click', () => {
     renderAll();
 });
 
-// Word preset buttons
 const wordBtnsEl = document.getElementById('wordBtns');
 WORDS.forEach(word => {
     const btn = document.createElement('button');
@@ -831,7 +754,6 @@ WORDS.forEach(word => {
     });
     wordBtnsEl.appendChild(btn);
 });
-// Clear word button highlight when typing custom text
 document.getElementById('textInput').addEventListener('input', () => {
     wordBtnsEl.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
 });
@@ -847,7 +769,6 @@ document.querySelectorAll('#typeBtns .btn').forEach(btn => {
         document.querySelectorAll('#typeBtns .btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         state.type = btn.dataset.type;
-        // Pipe has black outlines — auto-switch to light bg so they're visible
         if (state.type === 'Pipe' && state.bgIndex >= 5) {
             state._savedBg = state.bgIndex;
             state.bgIndex = 0;
@@ -865,7 +786,6 @@ document.getElementById('spreadSlider').addEventListener('input', (e) => {
     renderAll();
 });
 
-// Click canvases to cycle background
 document.getElementById('squiggleCanvas').addEventListener('click', () => {
     state.bgIndex = (state.bgIndex + 1) % BACKGROUNDS.length;
     renderAll();
