@@ -269,6 +269,10 @@
                 <div style="display:flex;gap:5px;">
                     <input type="text" id="textInput" value="Squiggles" maxlength="20" spellcheck="false">
                 </div>
+                <div class="btn-row" id="fontBtns" style="margin-top: 5px;">
+                    <button class="btn active" data-font="Allure">Allure</button>
+                    <button class="btn" data-font="Script">Script</button>
+                </div>
                 <div class="btn-row" id="wordBtns" style="margin-top: 5px;">
                     <button class="btn" data-word="S">S</button>
                     <button class="btn" data-word="Hi">Hi</button>
@@ -488,6 +492,7 @@ const state = {
     text: 'Squiggles',
     seed: 42,
     type: 'Normal',
+    font: 'Allure',
     spread: 15,
     bg: '#000000'
 };
@@ -595,14 +600,124 @@ function parseSvgPath(d) {
     return strokes;
 }
 
-// Pre-parse all glyphs
-const FONT = {};
-for (const [char, data] of Object.entries(EMS_ALLURE)) {
-    FONT[char] = {
-        width: data.w,
-        strokes: parseSvgPath(data.d || '')
-    };
+// ===========================================
+// HERSHEY SCRIPT SIMPLEX FONT DATA (1967)
+// Geometric/angular cursive — pen plotter origin
+// ===========================================
+const HERSHEY_SCRIPT = {
+    'a': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXVRUWUZV[W[YZZY\\V',
+    'b': 'M[MVOSRNSLTITGSFQGPIOMNTNZO[P[RZTXUUURVVWWYW[V',
+    'c': 'MXTTTSSRQROSNTMVMXNZP[S[VYXV',
+    'd': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXZF RVRUWUZV[W[YZZY\\V',
+    'e': 'NXOYQXRWSUSSRRQROSNUNXOZQ[S[UZVYXV',
+    'f': 'OWOVSQUNVLWIWGVFTGSIQQNZKaJdJfKgMfNcOZP[R[TZUYWV',
+    'g': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZTY RVRTYPdOfMgLfLdMaP^S\\U[XY[V',
+    'h': 'M\\MVOSRNSLTITGSFQGPIOMNSM[ RM[NXOVQSSRURVSVUUXUZV[W[YZZY\\V',
+    'i': 'PWSMSNTNTMSM RPVRRPXPZQ[R[TZUYWV',
+    'j': 'PWSMSNTNTMSM RPVRRLdKfIgHfHdIaL^O\\Q[TYWV',
+    'k': 'M[MVOSRNSLTITGSFQGPIOMNSM[ RM[NXOVQSSRURVSVUTVQV RQVSWTZU[V[XZYY[V',
+    'l': 'OWOVQSTNULVIVGUFSGRIQMPTPZQ[R[TZUYWV',
+    'm': 'E^EVGSIRJSJTIXH[ RIXJVLSNRPRQSQTPXO[ RPXQVSSURWRXSXUWXWZX[Y[[Z\\Y^V',
+    'n': 'J\\JVLSNROSOTNXM[ RNXOVQSSRURVSVUUXUZV[W[YZZY\\V',
+    'o': 'LZRRPRNSMTLVLXMZO[Q[SZTYUWUUTSRRQSQURWTXWXYWZV',
+    'p': 'KZKVMSNQMUGg RMUNSPRRRTSUUUWTYSZQ[ RMZO[R[UZWYZV',
+    'q': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZ RVRUUSZPaOdOfPgRfScS\\U[XY[V',
+    'r': 'MZMVOSPQPSSSTTTVSYSZT[U[WZXYZV',
+    's': 'NYNVPSQQQSSVTXTZR[ RNZP[T[VZWYYV',
+    't': 'OXOVQSSO RVFPXPZQ[S[UZVYXV RPNWN',
+    'u': 'L[LVNRLXLZM[O[QZSXUU RVRTXTZU[V[XZYY[V',
+    'v': 'L[LVNRMWMZN[O[RZTXUUUR RURVVWWYW[V',
+    'w': 'I^LRJTIWIYJ[L[NZPX RRRPXPZQ[S[UZWXXUXR RXRYVZW\\W^V',
+    'x': 'JZJVLSNRPRQSQZR[U[XYZV RWSVRTRSSOZN[L[KZ',
+    'y': 'L[LVNRLXLZM[O[QZSXUU RVRPdOfMgLfLdMaP^S\\U[XY[V',
+    'z': 'LZLVNSPRRRTTTVSXQZN[P\\Q^QaPdOfMgLfLdMaP^S\\WYZV',
+    ' ': 'JZ',
+    'A': 'E\\XFVHTKQPOSLWIZG[E[DZDXEWFXEY RXFWJUTT[ RXFU[ RT[TYSVRTPRNQLQKRKTLWOZR[V[XZ',
+    'B': 'F^UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWIXHY ROLNNMOKOJNJLKJMHOGRFXFZG[I[KZMXNTORO RXFYGZIZKYMXN RTOWPXQYSYVXYWZU[S[RZRXSU RTOVPWQXSXVWYU[',
+    'C': 'H]KHJJJLKNNOQOUNWMYKZIZGYFWFTGQJOMMQLULXMZP[R[UZWXXVXTWRURSSRU RWFUGRJPMNQMUMXNZP[',
+    'D': 'F]UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWJWLXNZP[S[UZWXYTZOZLYIWGUFPFMGKIJKJMKNMNNMOK',
+    'E': 'I\\WIVJVLWMYMZKZIYGWFTFRGQHPJPLQNSO RTFRHQJQMSO RSOQONPLRKTKWLYMZO[R[UZWXXVXTWRURSSRU RQOOPMRLTLXMZ',
+    'F': 'G\\WHVJTORUQWOZM[ RQLPNNOLOKMKKLINGQF[FXGWHVKTSSVRXPZM[K[IZHYHXIWJXIY RSFWGXG ROSPRRQVQXPZMXT',
+    'G': 'G]JIIKIMJOLPOPROTNWKXHXGWFVFTGRIQKPNPQQSSTUTWSYQZO RWFUGSIRKQNQRST RZOYSWWUYSZO[L[JZIXIWJVKWJX RYSWVUXRZO[',
+    'H': 'F^LLKKKILGOFRFOQMWLYKZI[G[FZFXGWHXGY RRFOONRLWKYI[ RJTKSMRVOXN[L]J^H^G]F\\FZGXJWLURTVTYV[W[YZ[X R\\FZHXLVRUVUYV[',
+    'I': 'IYWHUKSPQUPWNZL[ RYLWNTOQOONNLNJOHQGUFYFWHVJTPRVQXOZL[J[IZIXJWKXJY',
+    'J': 'IZYFWHUKSPPYN] RYMWOTPQPOONMNKOIQGUFYFWIVKSTQXPZN]M^K_J^J\\KZMXOWRVVU',
+    'K': 'F^LLKKKIMGPFRFOQMWLYKZI[G[FZFXGWHXGY RRFOONRLWKYI[ RZGWKUMSNPO R]G\\H]I^H^G]F\\FZGWLVMTNPO RPOSPTRUYV[ RPORPSRTYV[W[YZ[X',
+    'L': 'I[MILKLMMOOPRPUOWNZK[H[GZFYFWGVHTKPUOWMZK[ RVHTLRSQVPXNZK[I[HZHXIWKWMXPZR[U[WZYX',
+    'M': 'D`RFNOKUIXGZE[C[BZBXCWDXCY RRFPMOQNVNZP[ RRFQJPOOVOZP[ R[FWORXP[ R[FYMXQWVWZY[Z[\\Z^X R[FZJYOXVXZY[',
+    'N': 'G^RFQJOPMULWJZH[F[EZEXFWGXFY RRFRKSVT[ RRFSKTVT[ R`G_H`IaHaG`F^F\\GZJYLWQUWT[',
+    'O': 'H]SFQGOIMLLNKRKVLYMZO[Q[TZVXXUYSZOZKYHXGWGUHSJQNPSPV RQGOJMNLRLVMYO[',
+    'P': 'F]UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWIXHY ROLNNMOKOJNJLKJMHOGRFVFYGZH[J[MZOYPVQTQRP RVFXGYHZJZMYOXPVQ',
+    'Q': 'H]SFQGOIMLLNKRKVLYMZO[Q[TZVXXUYSZOZKYHXGWGUHSJQNPSPV RQGOJMNLRLVMYO[ RU[ZY',
+    'R': 'F^UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWIXHY ROLNNMOKOJNJLKJMHOGRFWFZG[I[KZMYNVORO RWFYGZIZKYMXNVO RROUPVRWYX[ RROTPURVYX[Y[[Z]X',
+    'S': 'H\\H[JZLXOTQQSMTJTGSFRFQGPIPKQMSOVQXSYUYWXYWZT[P[MZKXJVJT',
+    'T': 'I[YHXJVOTUSWQZO[ RSLRNPONOMMMKNIPGSF\\FZGYHXKVSUVTXRZO[M[KZJYJXKWLXKY RUFYGZG',
+    'U': 'G]HJJGLFMFOHOKNNKVKYL[ RMFNHNKKSJVJYL[N[PZSWUTVR RZFVRUVUYW[X[ZZ\\X R[FWRVVVYW[',
+    'V': 'G\\HJJGLFMFOHOKNOLVLYM[ RMFNHNKLRKVKYM[N[QZTWVTXPYMZIZGYFXFWGVIVLWNYP[Q]Q',
+    'W': 'F]ILHLGKGIHGJFNFMHLLKUJ[ RLLLUK[ RVFTHRLOUMYK[ RVFUHTLSUR[ RTLTUS[ R`F^G\\IZLWUUYS[',
+    'X': 'H\\PKOLMLLKLIMGOFQFSGTITLSPQUOXMZJ[H[GZGXHWIXHY RQFRGSISLRPPUNXLZJ[ R]G\\H]I^H^G]F[FYGWIULSPRURXSZT[U[WZYX',
+    'Y': 'G]JJLGNFOFQGQIOOORPT ROFPGPINONRPTRTUSWQYNZL R\\FZLWTUX R]F[LYQWUUXSZP[L[JZIXIWJVKWJX',
+    'Z': 'G\\ZHYJWOVRUTSWQYOZL[ RSLRNPONOMMMKNIPGSF]F[GZHYKXOVUTXQZL[H[GZGXHWJWLXOZQ[T[WZYX RVFZG[G'
+};
+
+// Decode Hershey JHF format → {width, strokes} matching FONT format
+// Coordinates scaled by 33 to match EMS Allure coordinate space
+const HERSHEY_SCALE = 33;
+function decodeHersheyFont(data) {
+    const R = 82;
+    const left = data.charCodeAt(0) - R;
+    const right = data.charCodeAt(1) - R;
+    const strokes = [];
+    let stroke = [];
+    let i = 2;
+    while (i < data.length) {
+        if (data[i] === ' ' && data[i + 1] === 'R') {
+            if (stroke.length > 0) { strokes.push(stroke); stroke = []; }
+            i += 2;
+            continue;
+        }
+        const x = (data.charCodeAt(i) - R - left) * HERSHEY_SCALE;
+        const y = -(data.charCodeAt(i + 1) - R) * HERSHEY_SCALE; // flip Y
+        stroke.push([x, y]);
+        i += 2;
+    }
+    if (stroke.length > 0) strokes.push(stroke);
+    return { width: (right - left) * HERSHEY_SCALE, strokes };
 }
+
+// Pre-parse all glyphs for both fonts
+const FONT_ALLURE = {};
+for (const [char, data] of Object.entries(EMS_ALLURE)) {
+    FONT_ALLURE[char] = { width: data.w, strokes: parseSvgPath(data.d || '') };
+}
+
+const FONT_SCRIPT = {};
+for (const [char, data] of Object.entries(HERSHEY_SCRIPT)) {
+    FONT_SCRIPT[char] = decodeHersheyFont(data);
+}
+
+// Compute font Y range (for dynamic height capping)
+function computeFontYRange(font) {
+    let minY = Infinity, maxY = -Infinity;
+    for (const glyph of Object.values(font)) {
+        for (const stroke of glyph.strokes) {
+            for (const [, y] of stroke) {
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+    return maxY - minY || 900;
+}
+
+const FONTS = {
+    Allure: { glyphs: FONT_ALLURE, yRange: computeFontYRange(FONT_ALLURE) },
+    Script: { glyphs: FONT_SCRIPT, yRange: computeFontYRange(FONT_SCRIPT) }
+};
+
+// Active font reference
+let FONT = FONT_ALLURE;
+let FONT_Y_RANGE = FONTS.Allure.yRange;
 
 // Stroke classification for EMS Allure coordinate scale
 function isDot(stroke) {
@@ -685,16 +800,35 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
     const widthTarget = charCount <= 2 ? 0.65 : charCount <= 3 ? 0.75 : 0.92;
     const maxWidth = canvasWidth * widthTarget;
 
+    // Compute Y range for THIS word's actual characters (not full font)
+    // Words without descenders get more vertical room
+    let wordMinFY = Infinity, wordMaxFY = -Infinity;
+    for (const char of text) {
+        const glyph = FONT[char];
+        if (!glyph || char === ' ') continue;
+        for (const stroke of glyph.strokes) {
+            for (const [, fy] of stroke) {
+                if (fy < wordMinFY) wordMinFY = fy;
+                if (fy > wordMaxFY) wordMaxFY = fy;
+            }
+        }
+    }
+    const wordYRange = (wordMaxFY - wordMinFY) || FONT_Y_RANGE;
+
     // Hard ceiling: word rendered height (paths + circle overshoot) must not
     // exceed the actual Snowfro squiggle height for this seed/type
     const snowfroH = getSnowfroHeight(canvasHeight, decPairs, type);
     const circleOvershoot = { Normal: 1.14, Bold: 1.25, Slinky: 1.15, Pipe: 1.32, Fuzzy: 1.14, Ribbed: 1.14 }[type] || 1.2;
     const maxLetterHeight = snowfroH / circleOvershoot;
-    const maxHeightScale = maxLetterHeight / 900;
+    const maxHeightScale = maxLetterHeight / wordYRange;
     const scale = Math.min(maxWidth / totalFontWidth, maxHeightScale);
 
     const baselineY = canvasHeight * 0.55;
     let xOffset = (canvasWidth - totalFontWidth * scale) / 2;
+
+    // Per-letter jitter RNG (deterministic from seed)
+    const jitterRng = decPairs ? createRng((state.seed ^ 0xCAFE) >>> 0) : null;
+    const jitterAmt = FONT_Y_RANGE * 0.012; // subtle: ~1.2% of font height
 
     let minY = Infinity, maxY = -Infinity;
     let letterIdx = 0;
@@ -713,7 +847,7 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
         const scaleVar = decPairs ? map(decPairs[20 + (letterIdx % 2)], 0, 255, 0.97, 1.03) : 1;
 
         const letterCenterX = xOffset + (glyph.width / 2) * scale;
-        const letterCenterY = baselineY - 150 * scale;
+        const letterCenterY = baselineY - (FONT_Y_RANGE * 0.15) * scale;
 
         const isCapital = char >= 'A' && char <= 'Z';
         const isThinMode = type === 'Slinky' || type === 'Pipe';
@@ -731,8 +865,14 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
                 : (isDot(stroke) || isCrossbar(stroke));
 
             const transformedPath = stroke.map(([fx, fy]) => {
-                let cx = xOffset + fx * scale;
-                let cy = baselineY - fy * scale;
+                // Per-control-point jitter for variation
+                let jx = 0, jy = 0;
+                if (jitterRng) {
+                    jx = (jitterRng() - 0.5) * jitterAmt;
+                    jy = (jitterRng() - 0.5) * jitterAmt;
+                }
+                let cx = xOffset + (fx + jx) * scale;
+                let cy = baselineY - (fy + jy) * scale;
                 let dx = cx - letterCenterX, dy = cy - letterCenterY;
                 dx *= scaleVar; dy *= scaleVar;
                 const rx = dx * cosR - dy * sinR;
@@ -1378,6 +1518,19 @@ document.querySelectorAll('#typeBtns .btn').forEach(btn => {
     });
 });
 
+// Font buttons
+document.querySelectorAll('#fontBtns .btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#fontBtns .btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.font = btn.dataset.font;
+        const fontData = FONTS[state.font];
+        FONT = fontData.glyphs;
+        FONT_Y_RANGE = fontData.yRange;
+        renderAll();
+    });
+});
+
 // Spread slider
 document.getElementById('spreadSlider').addEventListener('input', (e) => {
     state.spread = parseInt(e.target.value);
@@ -1436,6 +1589,12 @@ document.getElementById('resetBtn').addEventListener('click', () => {
         const valEl = document.getElementById(id + 'Val');
         if (valEl) valEl.textContent = val;
     }
+    // Reset font to Allure
+    document.querySelectorAll('#fontBtns .btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('#fontBtns .btn[data-font="Allure"]').classList.add('active');
+    state.font = 'Allure';
+    FONT = FONTS.Allure.glyphs;
+    FONT_Y_RANGE = FONTS.Allure.yRange;
     document.querySelectorAll('#fillModeBtns .btn').forEach(b => b.classList.remove('active'));
     document.querySelector('#fillModeBtns .btn[data-fill="peaks"]').classList.add('active');
     document.getElementById('skipDouble').checked = true;
