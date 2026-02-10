@@ -195,7 +195,7 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* v2.4 current reference marker */
+        /* v2.5 current reference marker */
         .cur-tick {
             position: absolute; top: 0; width: 2px; height: 100%;
             background: #60a5fa; border-radius: 1px; z-index: 0;
@@ -232,7 +232,7 @@
             <div class="canvas-info" id="playInfo"></div>
         </div>
         <div class="canvas-card">
-            <div class="canvas-label">SquigWord v2.4</div>
+            <div class="canvas-label">SquigWord v2.5</div>
             <div class="lock-badge">Locked</div>
             <canvas id="currentCanvas" width="600" height="300"></canvas>
             <div class="canvas-info" id="currentInfo"></div>
@@ -262,7 +262,7 @@
                 </div>
             </div>
             <div class="field" style="flex: 0 0 auto; align-self: flex-end;">
-                <button class="btn" id="resetBtn" style="background: rgba(96,165,250,0.15); border-color: rgba(96,165,250,0.3); color: #60a5fa;">Reset to v2.4</button>
+                <button class="btn" id="resetBtn" style="background: rgba(96,165,250,0.15); border-color: rgba(96,165,250,0.3); color: #60a5fa;">Reset to v2.5</button>
             </div>
             <div class="field" style="flex: 1;">
                 <div class="field-label">Text</div>
@@ -318,14 +318,14 @@
                 </div>
                 <div class="slider-row" data-types="Pipe">
                     <label>Pipe outer</label>
-                    <div class="slider-wrap" data-snow="7" data-cur="5" data-min="3" data-max="12">
+                    <div class="slider-wrap" data-snow="7" data-cur="5.5" data-min="3" data-max="12">
                         <input type="range" id="pipeOuterDiv" min="3" max="12" value="5.5" step="0.25">
                     </div>
                     <span class="slider-val" id="pipeOuterDivVal">5.5</span>
                 </div>
                 <div class="slider-row" data-types="Slinky,Pipe">
                     <label>Inner ring</label>
-                    <div class="slider-wrap" data-snow="13" data-cur="13" data-min="8" data-max="20">
+                    <div class="slider-wrap" data-snow="13" data-cur="12" data-min="8" data-max="20">
                         <input type="range" id="pipeInnerDiv" min="8" max="20" value="12" step="0.25">
                     </div>
                     <span class="slider-val" id="pipeInnerDivVal">12</span>
@@ -856,7 +856,7 @@ function computeDrawOpsCurrent(canvas) {
     const normalDiam = effectiveH / 13;
     const boldDiam = effectiveH / 7;
     const slinkyRingDiam = normalDiam;
-    const pipeDiam = effectiveH / 5;
+    const pipeDiam = effectiveH / 5.5;
     const ribbedDiam = effectiveH / 12;
     const sw = effectiveH / 1200;
 
@@ -868,12 +868,49 @@ function computeDrawOpsCurrent(canvas) {
     let rng = createRng(rngBaseSeed);
 
     const slinkySw = Math.max(sw * 2, 1.0);
-    const slinkyDiam = normalDiam;
+    const slinkyDiam = effectiveH / 12;
+
+    // v2.5: peaks fill budget (same as playground)
+    const FILL_BUDGET = 16;
+    let fillLookup = null;
+    {
+        let gMinY = Infinity, gMaxY = -Infinity;
+        for (const pts of allPaths) {
+            for (const pt of pts) { gMinY = Math.min(gMinY, pt[1]); gMaxY = Math.max(gMaxY, pt[1]); }
+        }
+        const gCenterY = (gMinY + gMaxY) / 2;
+        const candidates = [];
+        for (let p = 0; p < allPaths.length; p++) {
+            const pts = allPaths[p];
+            if (pts.length < 2) continue;
+            const extrema = findYExtrema(pts);
+            for (const idx of extrema) {
+                candidates.push({ pathIdx: p, controlIdx: idx, dist: Math.abs(pts[idx][1] - gCenterY) });
+            }
+        }
+        const tops = candidates.filter(c => allPaths[c.pathIdx][c.controlIdx][1] < gCenterY);
+        const bottoms = candidates.filter(c => allPaths[c.pathIdx][c.controlIdx][1] >= gCenterY);
+        tops.sort((a, b) => b.dist - a.dist);
+        bottoms.sort((a, b) => b.dist - a.dist);
+        const kept = [];
+        let ti = 0, bi = 0;
+        while (kept.length < FILL_BUDGET && (ti < tops.length || bi < bottoms.length)) {
+            if (ti < tops.length) kept.push(tops[ti++]);
+            if (kept.length < FILL_BUDGET && bi < bottoms.length) kept.push(bottoms[bi++]);
+        }
+        fillLookup = new Map();
+        for (const c of kept) {
+            if (!fillLookup.has(c.pathIdx)) fillLookup.set(c.pathIdx, new Set());
+            fillLookup.get(c.pathIdx).add(c.controlIdx);
+        }
+    }
 
     let color = 0;
+    let pathIdx = 0;
 
     for (const pathPoints of allPaths) {
-        if (pathPoints.length < 2) continue;
+        if (pathPoints.length < 2) { pathIdx++; continue; }
+        const extremaSegs = fillLookup.get(pathIdx) || new Set();
         const padded = [pathPoints[0], ...pathPoints, pathPoints[pathPoints.length - 1]];
         const totalSegs = padded.length - 3;
 
@@ -882,12 +919,15 @@ function computeDrawOpsCurrent(canvas) {
             const lastSeg = seg === totalSegs - 1;
 
             for (let i = 0; i <= steps; i++) {
-                // v2.4: skip last point of each segment except final (dedup fix)
+                // v2.5: skip last point of each segment except final (dedup fix)
                 if (i === steps && !lastSeg) continue;
                 const t = i / steps;
                 const x = curvePoint(p0[0], p1[0], p2[0], p3[0], t);
                 const y = curvePoint(p0[1], p1[1], p2[1], p3[1], t);
-                const isEndpoint = (seg === 0 && i === 0) || (lastSeg && i === steps);
+
+                const atControlPoint = i === 0 || (lastSeg && i === steps);
+                const controlIdx = (lastSeg && i === steps) ? pathPoints.length - 1 : seg;
+                const shouldFill = atControlPoint && extremaSegs.has(controlIdx);
 
                 const hue = reverse
                     ? 255 - (((color / spread) + startColor) % 255)
@@ -909,14 +949,14 @@ function computeDrawOpsCurrent(canvas) {
                 } else if (isSlinky) {
                     if (isPipe) {
                         ops.push({ x, y, radius: pipeDiam / 2,
-                            fill: isEndpoint ? 'black' : null,
+                            fill: shouldFill ? 'black' : null,
                             stroke: 'black', lineWidth: sw + (slinkySw - sw) * 0.3 });
                         ops.push({ x, y, radius: slinkyDiam / 2,
-                            fill: isEndpoint ? `rgb(${r},${g},${b})` : null,
+                            fill: shouldFill ? `rgb(${r},${g},${b})` : null,
                             stroke: `rgb(${r},${g},${b})`, lineWidth: slinkySw });
                     } else {
                         ops.push({ x, y, radius: slinkyDiam / 2,
-                            fill: isEndpoint ? `rgb(${r},${g},${b})` : null,
+                            fill: shouldFill ? `rgb(${r},${g},${b})` : null,
                             stroke: `rgb(${r},${g},${b})`, lineWidth: slinkySw });
                     }
                 } else if (isSegmented) {
@@ -937,6 +977,7 @@ function computeDrawOpsCurrent(canvas) {
             }
         }
         rng = createRng(rngBaseSeed);
+        pathIdx++;
     }
 
     return {
@@ -980,8 +1021,8 @@ function renderCurrent(canvas) {
         document.getElementById('currentInfo').innerHTML =
             `steps: <span>${info.steps}</span> | sw: <span>${info.sw.toFixed(2)}</span> | ` +
             `normal: <span>H/${13}</span> | bold: <span>H/${7}</span> | ` +
-            `pipe: <span>H/${5}</span> | inner: <span>H/${13}</span> | ` +
-            `skipDup: <span>ON</span> | fillJoins: <span>OFF</span>`;
+            `pipe: <span>H/${5.5}</span> | inner: <span>H/${12}</span> | ` +
+            `skipDup: <span>ON</span> | fills: <span>peaks</span>`;
     } else {
         document.getElementById('currentInfo').innerHTML = '';
     }
@@ -1331,10 +1372,10 @@ document.querySelectorAll('#fillModeBtns .btn').forEach(btn => {
 // Checkboxes
 document.getElementById('skipDouble').addEventListener('change', renderPlaygroundOnly);
 
-// Reset to v2.4 defaults
+// Reset to v2.5 defaults
 document.getElementById('resetBtn').addEventListener('click', () => {
     const defaults = {
-        normalDiv: 13, boldDiv: 7, pipeOuterDiv: 5, pipeInnerDiv: 13, ribbedDiv: 12,
+        normalDiv: 13, boldDiv: 7, pipeOuterDiv: 5.5, pipeInnerDiv: 12, ribbedDiv: 12,
         normalSteps: 80, boldSteps: 50, slinkySteps: 10, pipeSteps: 8,
         swMult: 1.0, slinkSwMult: 2.0,
         fuzzyDiv: 13, fuzzySteps: 200
@@ -1346,7 +1387,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
         if (valEl) valEl.textContent = val;
     }
     document.querySelectorAll('#fillModeBtns .btn').forEach(b => b.classList.remove('active'));
-    document.querySelector('#fillModeBtns .btn[data-fill="off"]').classList.add('active');
+    document.querySelector('#fillModeBtns .btn[data-fill="peaks"]').classList.add('active');
     document.getElementById('skipDouble').checked = true;
     renderPlaygroundOnly();
 });
