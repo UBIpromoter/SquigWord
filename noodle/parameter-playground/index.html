@@ -269,6 +269,17 @@
                 <div style="display:flex;gap:5px;">
                     <input type="text" id="textInput" value="Squiggles" maxlength="20" spellcheck="false">
                 </div>
+                <div class="btn-row" id="wordBtns" style="margin-top: 5px;">
+                    <button class="btn" data-word="S">S</button>
+                    <button class="btn" data-word="Hi">Hi</button>
+                    <button class="btn" data-word="Joy">Joy</button>
+                    <button class="btn" data-word="Aura">Aura</button>
+                    <button class="btn" data-word="Bloom">Bloom</button>
+                    <button class="btn" data-word="Squigs">Squigs</button>
+                    <button class="btn" data-word="Flowers">Flowers</button>
+                    <button class="btn active" data-word="Squiggles">Squiggles</button>
+                    <button class="btn" data-word="Butterflies">Butterflies</button>
+                </div>
             </div>
             <div class="field" style="flex: 0 0 auto;">
                 <div class="field-label">Seed</div>
@@ -294,7 +305,7 @@
                 <div class="slider-row" data-types="Normal,Ribbed">
                     <label>Normal</label>
                     <div class="slider-wrap" data-snow="13" data-cur="13" data-min="8" data-max="20">
-                        <input type="range" id="normalDiv" min="8" max="20" value="13" step="1">
+                        <input type="range" id="normalDiv" min="8" max="20" value="13" step="0.25">
                     </div>
                     <span class="slider-val" id="normalDivVal">13</span>
                 </div>
@@ -308,23 +319,30 @@
                 <div class="slider-row" data-types="Pipe">
                     <label>Pipe outer</label>
                     <div class="slider-wrap" data-snow="7" data-cur="5" data-min="3" data-max="12">
-                        <input type="range" id="pipeOuterDiv" min="3" max="12" value="5" step="1">
+                        <input type="range" id="pipeOuterDiv" min="3" max="12" value="5.5" step="0.25">
                     </div>
-                    <span class="slider-val" id="pipeOuterDivVal">5</span>
+                    <span class="slider-val" id="pipeOuterDivVal">5.5</span>
                 </div>
                 <div class="slider-row" data-types="Slinky,Pipe">
                     <label>Inner ring</label>
                     <div class="slider-wrap" data-snow="13" data-cur="13" data-min="8" data-max="20">
-                        <input type="range" id="pipeInnerDiv" min="8" max="20" value="13" step="1">
+                        <input type="range" id="pipeInnerDiv" min="8" max="20" value="12" step="0.25">
                     </div>
-                    <span class="slider-val" id="pipeInnerDivVal">13</span>
+                    <span class="slider-val" id="pipeInnerDivVal">12</span>
                 </div>
                 <div class="slider-row" data-types="Ribbed">
                     <label>Ribbed</label>
                     <div class="slider-wrap" data-snow="12" data-cur="12" data-min="8" data-max="20">
-                        <input type="range" id="ribbedDiv" min="8" max="20" value="12" step="1">
+                        <input type="range" id="ribbedDiv" min="8" max="20" value="12" step="0.25">
                     </div>
                     <span class="slider-val" id="ribbedDivVal">12</span>
+                </div>
+                <div class="slider-row" data-types="Fuzzy">
+                    <label>Fuzz radius</label>
+                    <div class="slider-wrap" data-snow="10" data-cur="13" data-min="5" data-max="20">
+                        <input type="range" id="fuzzyDiv" min="5" max="20" value="13" step="1">
+                    </div>
+                    <span class="slider-val" id="fuzzyDivVal">13</span>
                 </div>
             </div>
 
@@ -347,8 +365,8 @@
                 </div>
                 <div class="slider-row" data-types="Slinky">
                     <label>Slinky</label>
-                    <div class="slider-wrap" data-snow="50" data-cur="10" data-min="3" data-max="50">
-                        <input type="range" id="slinkySteps" min="3" max="50" value="10" step="1">
+                    <div class="slider-wrap" data-snow="50" data-cur="10" data-min="3" data-max="55">
+                        <input type="range" id="slinkySteps" min="3" max="55" value="10" step="0.5">
                     </div>
                     <span class="slider-val" id="slinkyStepsVal">10</span>
                 </div>
@@ -358,6 +376,13 @@
                         <input type="range" id="pipeSteps" min="3" max="50" value="8" step="1">
                     </div>
                     <span class="slider-val" id="pipeStepsVal">8</span>
+                </div>
+                <div class="slider-row" data-types="Fuzzy">
+                    <label>Fuzzy</label>
+                    <div class="slider-wrap" data-snow="1000" data-cur="200" data-min="50" data-max="1000">
+                        <input type="range" id="fuzzySteps" min="50" max="1000" value="200" step="10">
+                    </div>
+                    <span class="slider-val" id="fuzzyStepsVal">200</span>
                 </div>
             </div>
 
@@ -378,17 +403,18 @@
                     </div>
                     <span class="slider-val" id="slinkSwMultVal">2.0</span>
                 </div>
-                <div style="margin-top: 6px;">
-                    <div class="check-row" data-types="Slinky,Pipe">
-                        <input type="checkbox" id="fillJoins">
-                        <label for="fillJoins">Fill at segment joins</label>
-                        <span class="snow-ref">(S:ON)</span>
+                <div class="check-row" data-types="Slinky,Pipe" style="margin-top: 6px;">
+                    <label style="min-width: 28px;">Fills</label>
+                    <div class="btn-row" id="fillModeBtns">
+                        <button class="btn" data-fill="off">Off</button>
+                        <button class="btn active" data-fill="peaks">Peaks</button>
+                        <button class="btn" data-fill="all">All</button>
                     </div>
-                    <div class="check-row" data-types="Slinky,Pipe">
-                        <input type="checkbox" id="skipDouble" checked>
-                        <label for="skipDouble">Skip double-draw</label>
-                        <span class="snow-ref">(S:OFF)</span>
-                    </div>
+                </div>
+                <div class="check-row" data-types="Slinky,Pipe">
+                    <input type="checkbox" id="skipDouble" checked>
+                    <label for="skipDouble">Skip double-draw</label>
+                    <span class="snow-ref">(S:OFF)</span>
                 </div>
             </div>
 
@@ -682,6 +708,16 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
     }
 
     const letterHeight = (maxY - minY) || canvasHeight * 0.4;
+
+    // Center vertically in canvas
+    if (minY !== Infinity) {
+        const contentCenterY = (minY + maxY) / 2;
+        const canvasCenterY = canvasHeight / 2;
+        const yShift = canvasCenterY - contentCenterY;
+        for (const path of primaryPaths) for (const pt of path) pt[1] += yShift;
+        for (const path of secondaryPaths) for (const pt of path) pt[1] += yShift;
+    }
+
     return { primary: primaryPaths, secondary: secondaryPaths, letterHeight };
 }
 
@@ -909,20 +945,36 @@ function computeDrawOpsCurrent(canvas) {
     };
 }
 
+// Two-pass render: ring-only body first, filled anchors on top
+function drawParticles(ctx, particles) {
+    // Pass 1: stroke-only ops (tube body)
+    for (let i = 0; i < particles.length; i++) {
+        for (const op of particles[i]) {
+            if (op.fill) continue;
+            ctx.beginPath();
+            ctx.arc(op.x, op.y, op.radius, 0, Math.PI * 2);
+            if (op.stroke) { ctx.strokeStyle = op.stroke; ctx.lineWidth = op.lineWidth; ctx.stroke(); }
+        }
+    }
+    // Pass 2: filled ops (anchors always on top)
+    for (let i = 0; i < particles.length; i++) {
+        for (const op of particles[i]) {
+            if (!op.fill) continue;
+            ctx.beginPath();
+            ctx.arc(op.x, op.y, op.radius, 0, Math.PI * 2);
+            ctx.fillStyle = op.fill; ctx.fill();
+            if (op.stroke) { ctx.strokeStyle = op.stroke; ctx.lineWidth = op.lineWidth; ctx.stroke(); }
+        }
+    }
+}
+
 function renderCurrent(canvas) {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = state.bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const { particles, info } = computeDrawOpsCurrent(canvas);
-    for (let i = 0; i < particles.length; i++) {
-        for (const op of particles[i]) {
-            ctx.beginPath();
-            ctx.arc(op.x, op.y, op.radius, 0, Math.PI * 2);
-            if (op.fill) { ctx.fillStyle = op.fill; ctx.fill(); }
-            if (op.stroke) { ctx.strokeStyle = op.stroke; ctx.lineWidth = op.lineWidth; ctx.stroke(); }
-        }
-    }
+    drawParticles(ctx, particles);
 
     if (info.steps !== undefined) {
         document.getElementById('currentInfo').innerHTML =
@@ -941,20 +993,33 @@ function renderCurrent(canvas) {
 
 function getSliders() {
     return {
-        normalDiv: parseInt(document.getElementById('normalDiv').value),
+        normalDiv: parseFloat(document.getElementById('normalDiv').value),
         boldDiv: parseInt(document.getElementById('boldDiv').value),
-        pipeOuterDiv: parseInt(document.getElementById('pipeOuterDiv').value),
-        pipeInnerDiv: parseInt(document.getElementById('pipeInnerDiv').value),
-        ribbedDiv: parseInt(document.getElementById('ribbedDiv').value),
+        pipeOuterDiv: parseFloat(document.getElementById('pipeOuterDiv').value),
+        pipeInnerDiv: parseFloat(document.getElementById('pipeInnerDiv').value),
+        ribbedDiv: parseFloat(document.getElementById('ribbedDiv').value),
         normalSteps: parseInt(document.getElementById('normalSteps').value),
         boldSteps: parseInt(document.getElementById('boldSteps').value),
-        slinkySteps: parseInt(document.getElementById('slinkySteps').value),
+        slinkySteps: parseFloat(document.getElementById('slinkySteps').value),
         pipeSteps: parseInt(document.getElementById('pipeSteps').value),
         swMult: parseFloat(document.getElementById('swMult').value),
         slinkSwMult: parseFloat(document.getElementById('slinkSwMult').value),
-        fillJoins: document.getElementById('fillJoins').checked,
-        skipDouble: document.getElementById('skipDouble').checked
+        fillMode: document.querySelector('#fillModeBtns .btn.active').dataset.fill,
+        skipDouble: document.getElementById('skipDouble').checked,
+        fuzzyDiv: parseInt(document.getElementById('fuzzyDiv').value),
+        fuzzySteps: parseInt(document.getElementById('fuzzySteps').value)
     };
+}
+
+// Find the single highest and single lowest control point in a path
+function findYExtrema(pathPoints) {
+    if (pathPoints.length < 2) return new Set([0, pathPoints.length - 1]);
+    let minYIdx = 0, maxYIdx = 0;
+    for (let i = 1; i < pathPoints.length; i++) {
+        if (pathPoints[i][1] < pathPoints[minYIdx][1]) minYIdx = i; // topmost (canvas Y)
+        if (pathPoints[i][1] > pathPoints[maxYIdx][1]) maxYIdx = i; // bottommost
+    }
+    return new Set([minYIdx, maxYIdx]);
 }
 
 function computeDrawOpsPlayground(canvas, sliders) {
@@ -992,15 +1057,56 @@ function computeDrawOpsPlayground(canvas, sliders) {
 
     const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
     const ribbedSteps = Math.round(sliders.normalSteps * Math.max(1, div / 5));
-    const steps = isPipe ? sliders.pipeSteps : isSlinky ? sliders.slinkySteps : isFuzzy ? 200 : isBold ? sliders.boldSteps : isSegmented ? ribbedSteps : sliders.normalSteps;
+    const steps = Math.round(isPipe ? sliders.pipeSteps : isSlinky ? sliders.slinkySteps : isFuzzy ? sliders.fuzzySteps : isBold ? sliders.boldSteps : isSegmented ? ribbedSteps : sliders.normalSteps);
 
     const rngBaseSeed = (Math.abs(state.seed) ^ 0xDEADBEEF) >>> 0;
     let rng = createRng(rngBaseSeed);
 
+    // Pre-compute global fill budget for peaks mode
+    const FILL_BUDGET = 16;
+    let fillLookup = null;
+    if (sliders.fillMode === 'peaks') {
+        // Find global Y center of the word
+        let gMinY = Infinity, gMaxY = -Infinity;
+        for (const pts of allPaths) {
+            for (const pt of pts) { gMinY = Math.min(gMinY, pt[1]); gMaxY = Math.max(gMaxY, pt[1]); }
+        }
+        const gCenterY = (gMinY + gMaxY) / 2;
+
+        // Collect candidates: top + bottom of each stroke, scored by distance from word center
+        const candidates = [];
+        for (let p = 0; p < allPaths.length; p++) {
+            const pts = allPaths[p];
+            if (pts.length < 2) continue;
+            const extrema = findYExtrema(pts);
+            for (const idx of extrema) {
+                candidates.push({ pathIdx: p, controlIdx: idx, dist: Math.abs(pts[idx][1] - gCenterY) });
+            }
+        }
+        // Split into tops (above center) and bottoms, interleave for balance
+        const tops = candidates.filter(c => allPaths[c.pathIdx][c.controlIdx][1] < gCenterY);
+        const bottoms = candidates.filter(c => allPaths[c.pathIdx][c.controlIdx][1] >= gCenterY);
+        tops.sort((a, b) => b.dist - a.dist);
+        bottoms.sort((a, b) => b.dist - a.dist);
+        const kept = [];
+        let ti = 0, bi = 0;
+        while (kept.length < FILL_BUDGET && (ti < tops.length || bi < bottoms.length)) {
+            if (ti < tops.length) kept.push(tops[ti++]);
+            if (kept.length < FILL_BUDGET && bi < bottoms.length) kept.push(bottoms[bi++]);
+        }
+        fillLookup = new Map();
+        for (const c of kept) {
+            if (!fillLookup.has(c.pathIdx)) fillLookup.set(c.pathIdx, new Set());
+            fillLookup.get(c.pathIdx).add(c.controlIdx);
+        }
+    }
+
     let color = 0;
+    let pathIdx = 0;
 
     for (const pathPoints of allPaths) {
-        if (pathPoints.length < 2) continue;
+        if (pathPoints.length < 2) { pathIdx++; continue; }
+        const extremaSegs = fillLookup ? (fillLookup.get(pathIdx) || new Set()) : null;
         const padded = [pathPoints[0], ...pathPoints, pathPoints[pathPoints.length - 1]];
         const totalSegs = padded.length - 3;
 
@@ -1016,10 +1122,13 @@ function computeDrawOpsPlayground(canvas, sliders) {
                 const x = curvePoint(p0[0], p1[0], p2[0], p3[0], t);
                 const y = curvePoint(p0[1], p1[1], p2[1], p3[1], t);
 
-                // fillJoins: whether segment boundary points get filled
                 const isEndpoint = (seg === 0 && i === 0) || (lastSeg && i === steps);
-                const isSegBoundary = (i === 0 || i === steps);
-                const shouldFill = sliders.fillJoins ? isSegBoundary : isEndpoint;
+                const atControlPoint = i === 0 || (lastSeg && i === steps);
+                const controlIdx = (lastSeg && i === steps) ? pathPoints.length - 1 : seg;
+                const shouldFill =
+                    (sliders.fillMode === 'off' && isEndpoint) ||
+                    (sliders.fillMode === 'peaks' && atControlPoint && extremaSegs.has(controlIdx)) ||
+                    (sliders.fillMode === 'all' && atControlPoint);
 
                 const hue = reverse
                     ? 255 - (((color / spread) + startColor) % 255)
@@ -1029,7 +1138,7 @@ function computeDrawOpsPlayground(canvas, sliders) {
                 const ops = [];
 
                 if (isFuzzy) {
-                    const fuzzR = effectiveH / 13;
+                    const fuzzR = effectiveH / sliders.fuzzyDiv;
                     const fuzzX = x + map(rng(), 0, 1, 0, fuzzR);
                     const fuzzY = y + map(rng(), 0, 1, 0, fuzzR);
                     const dist = Math.sqrt((x - fuzzX) ** 2 + (y - fuzzY) ** 2);
@@ -1069,6 +1178,7 @@ function computeDrawOpsPlayground(canvas, sliders) {
             }
         }
         rng = createRng(rngBaseSeed);
+        pathIdx++;
     }
 
     return {
@@ -1084,22 +1194,14 @@ function renderPlayground(canvas) {
 
     const sliders = getSliders();
     const { particles, info } = computeDrawOpsPlayground(canvas, sliders);
-
-    for (let i = 0; i < particles.length; i++) {
-        for (const op of particles[i]) {
-            ctx.beginPath();
-            ctx.arc(op.x, op.y, op.radius, 0, Math.PI * 2);
-            if (op.fill) { ctx.fillStyle = op.fill; ctx.fill(); }
-            if (op.stroke) { ctx.strokeStyle = op.stroke; ctx.lineWidth = op.lineWidth; ctx.stroke(); }
-        }
-    }
+    drawParticles(ctx, particles);
 
     if (info.steps !== undefined) {
         document.getElementById('playInfo').innerHTML =
             `steps: <span>${info.steps}</span> | sw: <span>${info.sw.toFixed(2)}</span> | ` +
             `normal: <span>H/${sliders.normalDiv}</span> | bold: <span>H/${sliders.boldDiv}</span> | ` +
             `pipe: <span>H/${sliders.pipeOuterDiv}</span> | inner: <span>H/${sliders.pipeInnerDiv}</span> | ` +
-            `skipDup: <span>${sliders.skipDouble ? 'ON' : 'OFF'}</span> | fillJoins: <span>${sliders.fillJoins ? 'ON' : 'OFF'}</span>`;
+            `skipDup: <span>${sliders.skipDouble ? 'ON' : 'OFF'}</span> | fills: <span>${sliders.fillMode}</span>`;
 
         // Update derived values panel
         document.getElementById('derivedInfo').innerHTML =
@@ -1144,7 +1246,21 @@ function renderPlaygroundOnly() {
 // Text input
 document.getElementById('textInput').addEventListener('input', (e) => {
     state.text = e.target.value;
+    document.querySelectorAll('#wordBtns .btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.word === state.text);
+    });
     renderAll();
+});
+
+// Word preset buttons
+document.querySelectorAll('#wordBtns .btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#wordBtns .btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.text = btn.dataset.word;
+        document.getElementById('textInput').value = state.text;
+        renderAll();
+    });
 });
 
 // Seed input
@@ -1190,7 +1306,9 @@ const sliderConfigs = [
     { id: 'slinkySteps', valId: 'slinkyStepsVal' },
     { id: 'pipeSteps', valId: 'pipeStepsVal' },
     { id: 'swMult', valId: 'swMultVal' },
-    { id: 'slinkSwMult', valId: 'slinkSwMultVal' }
+    { id: 'slinkSwMult', valId: 'slinkSwMultVal' },
+    { id: 'fuzzyDiv', valId: 'fuzzyDivVal' },
+    { id: 'fuzzySteps', valId: 'fuzzyStepsVal' }
 ];
 
 sliderConfigs.forEach(({ id, valId }) => {
@@ -1201,8 +1319,16 @@ sliderConfigs.forEach(({ id, valId }) => {
     });
 });
 
+// Fill mode buttons
+document.querySelectorAll('#fillModeBtns .btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#fillModeBtns .btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderPlaygroundOnly();
+    });
+});
+
 // Checkboxes
-document.getElementById('fillJoins').addEventListener('change', renderPlaygroundOnly);
 document.getElementById('skipDouble').addEventListener('change', renderPlaygroundOnly);
 
 // Reset to v2.4 defaults
@@ -1210,7 +1336,8 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     const defaults = {
         normalDiv: 13, boldDiv: 7, pipeOuterDiv: 5, pipeInnerDiv: 13, ribbedDiv: 12,
         normalSteps: 80, boldSteps: 50, slinkySteps: 10, pipeSteps: 8,
-        swMult: 1.0, slinkSwMult: 2.0
+        swMult: 1.0, slinkSwMult: 2.0,
+        fuzzyDiv: 13, fuzzySteps: 200
     };
     for (const [id, val] of Object.entries(defaults)) {
         const el = document.getElementById(id);
@@ -1218,7 +1345,8 @@ document.getElementById('resetBtn').addEventListener('click', () => {
         const valEl = document.getElementById(id + 'Val');
         if (valEl) valEl.textContent = val;
     }
-    document.getElementById('fillJoins').checked = false;
+    document.querySelectorAll('#fillModeBtns .btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('#fillModeBtns .btn[data-fill="off"]').classList.add('active');
     document.getElementById('skipDouble').checked = true;
     renderPlaygroundOnly();
 });
@@ -1276,6 +1404,13 @@ function updateSliderVisibility() {
         } else {
             row.classList.add('hidden');
         }
+    });
+    // Hide entire groups when all their typed children are hidden
+    document.querySelectorAll('.controls-grid > div').forEach(group => {
+        const typedRows = group.querySelectorAll('[data-types]');
+        if (typedRows.length === 0) return; // no typed rows = always visible (derived values)
+        const anyVisible = Array.from(typedRows).some(r => !r.classList.contains('hidden'));
+        group.style.display = anyVisible ? '' : 'none';
     });
 }
 

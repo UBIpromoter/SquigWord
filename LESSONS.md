@@ -177,3 +177,35 @@ Pen plotter fonts (Hershey, EMS) were designed for stroke-by-stroke drawing. The
 
 ### Working Demo
 `noodle/stroke-animation/hershey-demo.html` — animates text stroke-by-stroke with correct order.
+
+---
+
+## Ribbed Marbling at Self-Crossings (February 2026)
+
+### The Problem
+Ribbed type shows "marbling" artifacts where letter paths cross themselves. Earlier gray rib circles peek through sub-pixel gaps between later color circles.
+
+### Lesson: Don't Blindly Apply PRD Numbers to Letter Rendering
+The PRD specifies 200 base steps (matching the reference squiggle), but the word renderer uses 80 for a reason — letter paths are shorter, and more steps means more rib positions which means MORE gray, not less marbling. Changing to 200 steps made Ribbed unrecognizable.
+
+### Lesson: Don't Bundle Multiple Changes
+When testing the Background Primer approach, we bundled it with 200-step density AND smaller rib sizes. The primer was never tested in isolation. Always test ONE variable at a time.
+
+### Lesson: The Interleaving IS the Effect
+You cannot separate color from ribs (two-pass, offscreen) without destroying the ribbed look. The alternating color-rib-color-rib sequence viewed together creates the visual effect.
+
+### Lesson: Offscreen Canvases Don't Solve Gap Problems
+Whether you draw circles to the main canvas or an offscreen canvas, the sub-pixel gaps between discrete circles are identical. Per-stroke offscreen compositing and buffered segment compositing both produced zero visible difference.
+
+### Summary of 8 Failed Approaches
+1. Two-pass rendering (ribs covered color)
+2. Smaller stroked ring ribs (lost color)
+3. Pre-clear with background (black bleeding)
+4. Per-stroke offscreen (no difference — problem is intra-stroke)
+5. Higher density 200 steps (more gray, still marbled)
+6. Semi-transparent ribs (inconsistent)
+7. Buffered segment compositing (no difference)
+8. PRD values + primer (unrecognizable)
+
+### Untested: Background Primer in Isolation
+The most promising approach — a continuous background-color stroke before each segment's circles — was never tested alone. It was only tested bundled with other changes. See `HANDOFF-ribbed-marbling.md` for full details and next steps.
