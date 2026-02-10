@@ -623,6 +623,47 @@ function isCrossbar(stroke) {
 }
 
 // ===========================================
+// SNOWFRO HEIGHT MEASUREMENT
+// ===========================================
+// Trace the actual Snowfro wave for current seed and return rendered height
+// including circle overshoot — this is the hard ceiling for word sizing
+
+function getSnowfroHeight(canvasHeight, decPairs, type) {
+    const ht = map(decPairs[27], 0, 255, 3, 4);
+    const segments = Math.floor(map(decPairs[26], 0, 255, 12, 20));
+    const amp = 1;
+    const steps = 50; // enough samples to find true min/max
+
+    let minY = Infinity, maxY = -Infinity;
+    for (let j = 0; j < segments - 2; j++) {
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const y = curvePoint(
+                map(decPairs[j], 0, 255, -canvasHeight / ht, canvasHeight / ht) * amp,
+                map(decPairs[j + 1], 0, 255, -canvasHeight / ht, canvasHeight / ht) * amp,
+                map(decPairs[j + 2], 0, 255, -canvasHeight / ht, canvasHeight / ht) * amp,
+                map(decPairs[j + 3], 0, 255, -canvasHeight / ht, canvasHeight / ht) * amp,
+                t
+            );
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+        }
+    }
+
+    // Add circle radius per type (matches Snowfro renderer sizes)
+    const circleRadius = {
+        Normal: canvasHeight / 13 / 2,
+        Bold: canvasHeight / 5 / 2,
+        Slinky: canvasHeight / 13 / 2,
+        Pipe: canvasHeight / 7 / 2,
+        Fuzzy: canvasHeight / 16 / 2,
+        Ribbed: canvasHeight / 12 / 2
+    }[type] || canvasHeight / 13 / 2;
+
+    return (maxY - minY) + circleRadius * 2;
+}
+
+// ===========================================
 // BUILD WORD PATHS (exact copy from v2.4)
 // ===========================================
 
@@ -639,8 +680,17 @@ function buildWordPaths(text, type, canvasWidth, canvasHeight, decPairs) {
     }
     if (totalFontWidth <= 0) return { primary: [], secondary: [], letterHeight: 0 };
 
-    const maxWidth = canvasWidth * 0.75;
-    const maxHeightScale = (canvasHeight * 0.65) / 900;
+    // Dynamic scale: fill width generously, cap height to reference squiggle
+    const charCount = [...text].filter(c => c !== ' ').length;
+    const widthTarget = charCount <= 2 ? 0.65 : charCount <= 3 ? 0.75 : 0.92;
+    const maxWidth = canvasWidth * widthTarget;
+
+    // Hard ceiling: word rendered height (paths + circle overshoot) must not
+    // exceed the actual Snowfro squiggle height for this seed/type
+    const snowfroH = getSnowfroHeight(canvasHeight, decPairs, type);
+    const circleOvershoot = { Normal: 1.14, Bold: 1.25, Slinky: 1.15, Pipe: 1.32, Fuzzy: 1.14, Ribbed: 1.14 }[type] || 1.2;
+    const maxLetterHeight = snowfroH / circleOvershoot;
+    const maxHeightScale = maxLetterHeight / 900;
     const scale = Math.min(maxWidth / totalFontWidth, maxHeightScale);
 
     const baselineY = canvasHeight * 0.55;
@@ -1048,7 +1098,7 @@ function getSliders() {
         fillMode: document.querySelector('#fillModeBtns .btn.active').dataset.fill,
         skipDouble: document.getElementById('skipDouble').checked,
         fuzzyDiv: parseInt(document.getElementById('fuzzyDiv').value),
-        fuzzySteps: parseInt(document.getElementById('fuzzySteps').value)
+        fuzzySteps: parseInt(document.getElementById('fuzzySteps').value),
     };
 }
 
