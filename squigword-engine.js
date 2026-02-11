@@ -194,6 +194,41 @@ const FONT_ALLURE = {};
 for (const [char, data] of Object.entries(EMS_ALLURE)) {
     FONT_ALLURE[char] = { width: data.w, strokes: parseSvgPath(data.d || '') };
 }
+
+// Allure capital cleanup — remove overlapping/decorative strokes
+const ALLURE_KEEP = {
+    'N': [0],   // drop stroke 1 (decorative cap overlaps main body)
+};
+for (const [ch, keep] of Object.entries(ALLURE_KEEP)) {
+    if (FONT_ALLURE[ch]) {
+        FONT_ALLURE[ch].strokes = keep.map(i => FONT_ALLURE[ch].strokes[i]).filter(Boolean);
+    }
+}
+
+// Allure capital stroke merges — decorative cap (stroke 0) leads into main body (stroke 1)
+function mergeCapIntoBody(strokeA, strokeB) {
+    // Find point in stroke 0 nearest to stroke 1's start, cut there, append all of stroke 1
+    const target = strokeB[0];
+    let bestIdx = 0, bestDist = Infinity;
+    for (let i = 0; i < strokeA.length; i++) {
+        const dx = strokeA[i][0] - target[0], dy = strokeA[i][1] - target[1];
+        const d = dx * dx + dy * dy;
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+    }
+    return [...strokeA.slice(0, bestIdx + 1), ...strokeB];
+}
+const ALLURE_MERGE = {
+    'V': [0, 1],   // cap + main body
+    'W': [0, 1],   // cap + main body
+};
+for (const [ch, [idxA, idxB]] of Object.entries(ALLURE_MERGE)) {
+    if (!FONT_ALLURE[ch]) continue;
+    const origStrokes = parseSvgPath(EMS_ALLURE[ch].d);
+    const merged = mergeCapIntoBody(origStrokes[idxA], origStrokes[idxB]);
+    // Replace first two strokes with merged, keep any remaining
+    FONT_ALLURE[ch].strokes = [merged, ...origStrokes.slice(2)];
+}
+
 const FONT_SCRIPT = {};
 for (const [char, data] of Object.entries(HERSHEY_SCRIPT)) {
     FONT_SCRIPT[char] = decodeHersheyFont(data);

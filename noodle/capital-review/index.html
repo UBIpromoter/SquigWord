@@ -2,24 +2,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Script Capital — Stroke Picker</title>
+    <title>SquigWord — Stroke Picker</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #000; color: #fff; font-family: system-ui, sans-serif; padding: 20px; }
         h1 { font-size: 16px; color: #888; margin-bottom: 4px; }
-        .subtitle { font-size: 12px; color: #555; margin-bottom: 16px; }
+        .subtitle { font-size: 12px; color: #555; margin-bottom: 12px; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+        .tab {
+            padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600;
+            font-family: inherit; cursor: pointer; border: 1px solid #333; background: #111; color: #888;
+            transition: all 0.12s;
+        }
+        .tab:hover { background: #1a1a1a; color: #ccc; }
+        .tab.active { background: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.4); color: #a855f7; }
+        .tab .count { font-size: 11px; color: #555; margin-left: 4px; }
+        .tab.active .count { color: rgba(168, 85, 247, 0.6); }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
         .cell {
             background: #111; border: 1px solid #222; border-radius: 8px; padding: 10px;
             display: flex; gap: 10px; align-items: flex-start;
         }
+        .cell.single-stroke { opacity: 0.6; }
         .canvases { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
         .canvases canvas { border-radius: 4px; display: block; }
         .info { flex: 1; min-width: 0; }
         .letter-head { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-        .letter-head .status { font-size: 11px; font-weight: 500; margin-left: 6px; }
+        .status { font-size: 11px; font-weight: 500; margin-left: 6px; }
         .status-done { color: #34d399; }
-        .status-needs { color: #f59e0b; }
+        .status-merged { color: #60a5fa; }
+        .status-single { color: #555; }
         .stroke-toggles { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
         .stroke-btn {
             width: 32px; height: 28px; border-radius: 4px; border: 2px solid;
@@ -31,29 +43,27 @@
         .stroke-btn:hover { transform: scale(1.1); }
         .pick-line { font-size: 11px; color: #555; font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
         .pick-line .indices { color: #a855f7; }
-        .match-note { font-size: 10px; color: #34d399; margin-top: 2px; }
-        .diff-note { font-size: 10px; color: #f59e0b; margin-top: 2px; }
-
-        /* Stroke colors — distinct, visible on black */
         .sc0 { border-color: #ef4444; background: rgba(239,68,68,0.15); color: #ef4444; }
         .sc1 { border-color: #22d3ee; background: rgba(34,211,238,0.15); color: #22d3ee; }
         .sc2 { border-color: #a3e635; background: rgba(163,230,53,0.15); color: #a3e635; }
         .sc3 { border-color: #f59e0b; background: rgba(245,158,11,0.15); color: #f59e0b; }
         .sc4 { border-color: #c084fc; background: rgba(192,132,252,0.15); color: #c084fc; }
         .sc5 { border-color: #fb7185; background: rgba(251,113,133,0.15); color: #fb7185; }
-        .sc0.off { background: transparent; } .sc1.off { background: transparent; }
-        .sc2.off { background: transparent; } .sc3.off { background: transparent; }
-        .sc4.off { background: transparent; } .sc5.off { background: transparent; }
+        .sc0.off,.sc1.off,.sc2.off,.sc3.off,.sc4.off,.sc5.off { background: transparent; }
     </style>
 </head>
 <body>
-    <h1>Script Capital — Stroke Picker</h1>
-    <div class="subtitle">Left = color-coded strokes (see what each does). Right = squiggle result. Click numbered buttons to toggle strokes on/off.</div>
+    <h1>SquigWord — Stroke Picker</h1>
+    <div class="subtitle">Click numbered buttons to toggle strokes. Stroke map (top) shows colored paths. Squiggle (bottom) shows result. Dimmed = single stroke, no action needed.</div>
+    <div class="tabs" id="tabs"></div>
     <div class="grid" id="grid"></div>
 
     <script src="../../squigword-engine.js"></script>
     <script>
-    const RAW_HERSHEY = {
+    // ============================================
+    // RAW HERSHEY DATA (uppercase + lowercase)
+    // ============================================
+    const RAW_HERSHEY_UPPER = {
         'A': 'E\\XFVHTKQPOSLWIZG[E[DZDXEWFXEY RXFWJUTT[ RXFU[ RT[TYSVRTPRNQLQKRKTLWOZR[V[XZ',
         'B': 'F^UGTHSJQOOUNWLZJ[ RTHSKQSPVOXMZJ[H[GZGXHWIXHY ROLNNMOKOJNJLKJMHOGRFXFZG[I[KZMXNTORO RXFYGZIZKYMXN RTOWPXQYSYVXYWZU[S[RZRXSU RTOVPWQXSXVWYU[',
         'C': 'H]KHJJJLKNNOQOUNWMYKZIZGYFWFTGQJOMMQLULXMZP[R[UZWXXVXTWRURSSRU RWFUGRJPMNQMUMXNZP[',
@@ -81,8 +91,78 @@
         'Y': 'G]JJLGNFOFQGQIOOORPT ROFPGPINONRPTRTUSWQYNZL R\\FZLWTUX R]F[LYQWUUXSZP[L[JZIXIWJVKWJX',
         'Z': 'G\\ZHYJWOVRUTSWQYOZL[ RSLRNPONOMMMKNIPGSF]F[GZHYKXOVUTXQZL[H[GZGXHWJWLXOZQ[T[WZYX RVFZG[G'
     };
+    const RAW_HERSHEY_LOWER = {
+        'a': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXVRUWUZV[W[YZZY\\V',
+        'b': 'M[MVOSRNSLTITGSFQGPIOMNTNZO[P[RZTXUUURVVWWYW[V',
+        'c': 'MXTTTSSRQROSNTMVMXNZP[S[VYXV',
+        'd': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXZF RVRUWUZV[W[YZZY\\V',
+        'e': 'NXOYQXRWSUSSRRQROSNUNXOZQ[S[UZVYXV',
+        'f': 'OWOVSQUNVLWIWGVFTGSIQQNZKaJdJfKgMfNcOZP[R[TZUYWV',
+        'g': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZTY RVRTYPdOfMgLfLdMaP^S\\U[XY[V',
+        'h': 'M\\MVOSRNSLTITGSFQGPIOMNSM[ RM[NXOVQSSRURVSVUUXUZV[W[YZZY\\V',
+        'i': 'PWSMSNTNTMSM RPVRRPXPZQ[R[TZUYWV',
+        'j': 'PWSMSNTNTMSM RPVRRLdKfIgHfHdIaL^O\\Q[TYWV',
+        'k': 'M[MVOSRNSLTITGSFQGPIOMNSM[ RM[NXOVQSSRURVSVUTVQV RQVSWTZU[V[XZYY[V',
+        'l': 'OWOVQSTNULVIVGUFSGRIQMPTPZQ[R[TZUYWV',
+        'm': 'E^EVGSIRJSJTIXH[ RIXJVLSNRPRQSQTPXO[ RPXQVSSURWRXSXUWXWZX[Y[[Z\\Y^V',
+        'n': 'J\\JVLSNROSOTNXM[ RNXOVQSSRURVSVUUXUZV[W[YZZY\\V',
+        'o': 'LZRRPRNSMTLVLXMZO[Q[SZTYUWUUTSRRQSQURWTXWXYWZV',
+        'p': 'KZKVMSNQMUGg RMUNSPRRRTSUUUWTYSZQ[ RMZO[R[UZWYZV',
+        'q': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZ RVRUUSZPaOdOfPgRfScS\\U[XY[V',
+        'r': 'MZMVOSPQPSSSTTTVSYSZT[U[WZXYZV',
+        's': 'NYNVPSQQQSSVTXTZR[ RNZP[T[VZWYYV',
+        't': 'OXOVQSSO RVFPXPZQ[S[UZVYXV RPNWN',
+        'u': 'L[LVNRLXLZM[O[QZSXUU RVRTXTZU[V[XZYY[V',
+        'v': 'L[LVNRMWMZN[O[RZTXUUUR RURVVWWYW[V',
+        'w': 'I^LRJTIWIYJ[L[NZPX RRRPXPZQ[S[UZWXXUXR RXRYVZW\\W^V',
+        'x': 'JZJVLSNRPRQSQZR[U[XYZV RWSVRTRSSOZN[L[KZ',
+        'y': 'L[LVNRLXLZM[O[QZSXUU RVRPdOfMgLfLdMaP^S\\U[XY[V',
+        'z': 'LZLVNSPRRRTTTVSXQZN[P\\Q^QaPdOfMgLfLdMaP^S\\WYZV',
+    };
 
-    const MANUAL_KEEP = {
+    // ============================================
+    // STROKE COLORS
+    // ============================================
+    const STROKE_COLORS = ['#ef4444', '#22d3ee', '#a3e635', '#f59e0b', '#c084fc', '#fb7185'];
+    const SEED = 42;
+    const CW = 280, CH = 200;
+
+    // ============================================
+    // DATA SETS
+    // ============================================
+
+    function buildDataSet(fontName, chars, rawHershey) {
+        const set = {};
+        for (const ch of chars) {
+            if (fontName === 'Script') {
+                const decoded = SquigWord.decodeHersheyFont(rawHershey[ch]);
+                set[ch] = { strokes: decoded.strokes, width: decoded.width };
+            } else {
+                // Allure — read from engine's parsed data (no filtering applied to Allure)
+                const glyph = SquigWord.FONTS.Allure.glyphs[ch];
+                set[ch] = { strokes: glyph ? [...glyph.strokes] : [], width: glyph ? glyph.width : 0 };
+            }
+        }
+        return set;
+    }
+
+    const TABS = [
+        { id: 'script-upper', label: 'Script Caps', font: 'Script', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
+        { id: 'script-lower', label: 'Script Lower', font: 'Script', chars: 'abcdefghijklmnopqrstuvwxyz' },
+        { id: 'allure-upper', label: 'Allure Caps', font: 'Allure', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
+    ];
+
+    const dataSets = {};
+    dataSets['script-upper'] = buildDataSet('Script', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', RAW_HERSHEY_UPPER);
+    dataSets['script-lower'] = buildDataSet('Script', 'abcdefghijklmnopqrstuvwxyz', RAW_HERSHEY_LOWER);
+    dataSets['allure-upper'] = buildDataSet('Allure', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', null);
+
+    // Merged letters (use engine data directly)
+    const SCRIPT_MERGED = new Set(['L', 'U', 'V', 'Y']);
+    const ALLURE_MERGED = new Set(['V', 'W']);
+
+    // Existing picks from engine — Script caps
+    const SCRIPT_KEEP_PICKS = {
         'A': [0, 1, 3], 'B': [1, 2, 4], 'C': [0], 'D': [1],
         'E': [0, 2], 'F': [1, 3], 'G': [0, 2], 'H': [0, 2],
         'I': [1], 'J': [1], 'K': [0, 3, 5],
@@ -92,67 +172,80 @@
         'W': [0, 2, 3, 5], 'X': [0, 2], 'Y': [0, 1, 3], 'Z': [1],
     };
 
-    const STROKE_COLORS = ['#ef4444', '#22d3ee', '#a3e635', '#f59e0b', '#c084fc', '#fb7185'];
-    const SEED = 42;
-    const CW = 280, CH = 200; // canvas size
+    // Existing picks from engine — Allure caps
+    const ALLURE_KEEP_PICKS = {
+        'N': [0],
+    };
 
-    const allOriginal = {};
-    for (const [ch, raw] of Object.entries(RAW_HERSHEY)) {
-        allOriginal[ch] = SquigWord.decodeHersheyFont(raw);
-    }
+    // ============================================
+    // PICKS STATE
+    // ============================================
+    const picks = {}; // "tabId:char" -> Set of enabled stroke indices
 
-    const grid = document.getElementById('grid');
-    const letterPicks = {}; // letter -> Set of enabled stroke indices
+    function pickKey(tabId, ch) { return tabId + ':' + ch; }
 
-    // Initialize picks: manual where available, all strokes otherwise
-    for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
-        const total = allOriginal[ch].strokes.length;
-        if (ch in MANUAL_KEEP) {
-            letterPicks[ch] = new Set(MANUAL_KEEP[ch]);
-        } else {
-            letterPicks[ch] = new Set(Array.from({length: total}, (_, i) => i));
+    // Initialize picks with existing decisions where available
+    for (const tab of TABS) {
+        for (const ch of tab.chars) {
+            const key = pickKey(tab.id, ch);
+            const total = dataSets[tab.id][ch].strokes.length;
+
+            if (tab.id === 'script-upper' && ch in SCRIPT_KEEP_PICKS) {
+                picks[key] = new Set(SCRIPT_KEEP_PICKS[ch]);
+            } else if (tab.id === 'allure-upper' && ch in ALLURE_KEEP_PICKS) {
+                picks[key] = new Set(ALLURE_KEEP_PICKS[ch]);
+            } else {
+                picks[key] = new Set(Array.from({length: total}, (_, i) => i));
+            }
         }
     }
 
-    function renderStrokeMap(ctx, letter) {
-        const strokes = allOriginal[letter].strokes;
-        const width = allOriginal[letter].width;
+    // ============================================
+    // RENDERING
+    // ============================================
 
-        // Compute bounds
+    function renderStrokeMap(ctx, tabId, ch) {
+        const data = dataSets[tabId][ch];
+        const strokes = data.strokes;
+        const key = pickKey(tabId, ch);
+
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         for (const s of strokes) for (const [x, y] of s) {
             minX = Math.min(minX, x); maxX = Math.max(maxX, x);
             minY = Math.min(minY, y); maxY = Math.max(maxY, y);
         }
+        if (!isFinite(minX)) { ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, CW, CH); return; }
+
         const padX = (maxX - minX) * 0.1 || 20;
         const padY = (maxY - minY) * 0.1 || 20;
-        const scaleX = CW / (maxX - minX + padX * 2);
-        const scaleY = CH / (maxY - minY + padY * 2);
-        const scale = Math.min(scaleX, scaleY);
+        const scale = Math.min(CW / (maxX - minX + padX * 2), CH / (maxY - minY + padY * 2));
         const offX = (CW - (maxX - minX) * scale) / 2 - minX * scale;
         const offY = (CH - (maxY - minY) * scale) / 2 - minY * scale;
 
         ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, CW, CH);
 
+        const tab = TABS.find(t => t.id === tabId);
+        const isHershey = tab.font === 'Script';
+
         strokes.forEach((stroke, si) => {
-            const enabled = letterPicks[letter].has(si);
+            const enabled = picks[key].has(si);
             ctx.strokeStyle = STROKE_COLORS[si % STROKE_COLORS.length];
             ctx.globalAlpha = enabled ? 1.0 : 0.4;
             ctx.lineWidth = enabled ? 2.5 : 1.5;
             ctx.beginPath();
             stroke.forEach(([x, y], pi) => {
                 const sx = x * scale + offX;
-                const sy = CH - (y * scale + offY); // flip Y
+                // Hershey Y is already flipped by decoder, Allure Y needs flip
+                const sy = isHershey ? (CH - (y * scale + offY)) : (CH - (y * scale + offY));
                 if (pi === 0) ctx.moveTo(sx, sy);
                 else ctx.lineTo(sx, sy);
             });
             ctx.stroke();
 
-            // Label stroke number at start
             const [x0, y0] = stroke[0];
             const lx = x0 * scale + offX;
-            const ly = CH - (y0 * scale + offY);
+            const ly = isHershey ? (CH - (y0 * scale + offY)) : (CH - (y0 * scale + offY));
             ctx.globalAlpha = enabled ? 0.9 : 0.5;
             ctx.fillStyle = STROKE_COLORS[si % STROKE_COLORS.length];
             ctx.font = 'bold 11px system-ui';
@@ -161,133 +254,156 @@
         ctx.globalAlpha = 1;
     }
 
-    // Letters with merged strokes — render using engine's merged data directly
-    const MERGED_LETTERS = new Set(['L', 'U', 'V', 'Y']);
-
-    function renderSquiggle(ctx, letter) {
+    function renderSquiggle(ctx, tabId, ch) {
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, CW, CH);
 
-        const glyph = SquigWord.FONTS.Script.glyphs[letter];
+        const tab = TABS.find(t => t.id === tabId);
+        const key = pickKey(tabId, ch);
+        const data = dataSets[tabId][ch];
 
-        if (MERGED_LETTERS.has(letter)) {
-            // Use engine's merged strokes as-is
+        // For merged letters, use engine's already-merged data directly
+        const isScriptMerged = tabId === 'script-upper' && SCRIPT_MERGED.has(ch);
+        const isAllureMerged = tabId === 'allure-upper' && ALLURE_MERGED.has(ch);
+        if (isScriptMerged || isAllureMerged) {
             const config = {
-                seed: SEED, fontStyle: 'Script',
-                rotation: 0, slant: 0,
-                loopWidth: 1.0, loopHeight: 1.0,
-                colorOffset: 0
+                seed: SEED, fontStyle: tab.font,
+                rotation: 0, slant: 0, loopWidth: 1.0, loopHeight: 1.0, colorOffset: 0
             };
-            const { particles } = SquigWord.computeDrawOps(letter, CW, CH, 'Normal', 20, config);
+            const { particles } = SquigWord.computeDrawOps(ch, CW, CH, 'Normal', 20, config);
             SquigWord.drawParticles(ctx, particles);
-        } else {
-            const saved = glyph.strokes;
-            const picked = [...letterPicks[letter]].sort((a, b) => a - b);
-            glyph.strokes = picked.map(i => allOriginal[letter].strokes[i]).filter(Boolean);
+            return;
+        }
 
-            if (glyph.strokes.length > 0) {
-                const config = {
-                    seed: SEED, fontStyle: 'Script',
-                    rotation: 0, slant: 0,
-                    loopWidth: 1.0, loopHeight: 1.0,
-                    colorOffset: 0
-                };
-                const { particles } = SquigWord.computeDrawOps(letter, CW, CH, 'Normal', 20, config);
-                SquigWord.drawParticles(ctx, particles);
+        const picked = [...picks[key]].sort((a, b) => a - b);
+        if (picked.length === 0) return;
+
+        const glyph = SquigWord.FONTS[tab.font].glyphs[ch];
+        if (!glyph) return;
+        const saved = glyph.strokes;
+        glyph.strokes = picked.map(i => data.strokes[i]).filter(Boolean);
+
+        const config = {
+            seed: SEED, fontStyle: tab.font,
+            rotation: 0, slant: 0, loopWidth: 1.0, loopHeight: 1.0, colorOffset: 0
+        };
+        const { particles } = SquigWord.computeDrawOps(ch, CW, CH, 'Normal', 20, config);
+        SquigWord.drawParticles(ctx, particles);
+
+        glyph.strokes = saved;
+    }
+
+    // ============================================
+    // GRID BUILDING
+    // ============================================
+
+    let currentTab = 'script-upper';
+    const grid = document.getElementById('grid');
+
+    function buildGrid(tabId) {
+        grid.innerHTML = '';
+        const tab = TABS.find(t => t.id === tabId);
+
+        for (const ch of tab.chars) {
+            const data = dataSets[tabId][ch];
+            const total = data.strokes.length;
+            const key = pickKey(tabId, ch);
+            const isSingle = total <= 1;
+            const isMerged = (tabId === 'script-upper' && SCRIPT_MERGED.has(ch)) || (tabId === 'allure-upper' && ALLURE_MERGED.has(ch));
+
+            const cell = document.createElement('div');
+            cell.className = 'cell' + (isSingle ? ' single-stroke' : '');
+
+            const canvasWrap = document.createElement('div');
+            canvasWrap.className = 'canvases';
+
+            const mapCanvas = document.createElement('canvas');
+            mapCanvas.width = CW; mapCanvas.height = CH;
+            canvasWrap.appendChild(mapCanvas);
+
+            const sqCanvas = document.createElement('canvas');
+            sqCanvas.width = CW; sqCanvas.height = CH;
+            canvasWrap.appendChild(sqCanvas);
+
+            cell.appendChild(canvasWrap);
+
+            const info = document.createElement('div');
+            info.className = 'info';
+
+            const label = document.createElement('div');
+            label.className = 'letter-head';
+            info.appendChild(label);
+
+            const toggles = document.createElement('div');
+            toggles.className = 'stroke-toggles';
+            const buttons = [];
+            for (let i = 0; i < total; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                const idx = i;
+                btn.addEventListener('click', () => {
+                    if (picks[key].has(idx)) {
+                        if (picks[key].size > 1) picks[key].delete(idx);
+                    } else {
+                        picks[key].add(idx);
+                    }
+                    update();
+                });
+                toggles.appendChild(btn);
+                buttons.push(btn);
+            }
+            info.appendChild(toggles);
+            cell.appendChild(info);
+            grid.appendChild(cell);
+
+            function update() {
+                renderStrokeMap(mapCanvas.getContext('2d'), tabId, ch);
+                renderSquiggle(sqCanvas.getContext('2d'), tabId, ch);
+
+                const picked = [...picks[key]].sort((a, b) => a - b);
+                let status;
+                if (isMerged) {
+                    status = '<span class="status status-merged">MERGED 0+1</span>';
+                } else if (isSingle) {
+                    status = '<span class="status status-single">1 stroke</span>';
+                } else {
+                    const isAll = picked.length === total;
+                    status = isAll
+                        ? '<span class="status" style="color:#888">all ' + total + ' strokes</span>'
+                        : '<span class="status status-done">' + picked.length + '/' + total + '</span>';
+                }
+                const pickDisplay = isMerged ? 'merged' : picked.join(', ');
+                label.innerHTML = `${ch} ${status} <span class="pick-line">[<span class="indices">${pickDisplay}</span>]</span>`;
+
+                buttons.forEach((btn, i) => {
+                    btn.className = `stroke-btn sc${i} ${picks[key].has(i) ? 'on' : 'off'}`;
+                });
             }
 
-            glyph.strokes = saved;
+            update();
         }
     }
 
-    function updateCell(letter) {
-        const { mapCanvas, sqCanvas, label, buttons } = cells[letter];
-        renderStrokeMap(mapCanvas.getContext('2d'), letter);
-        renderSquiggle(sqCanvas.getContext('2d'), letter);
+    // ============================================
+    // TABS
+    // ============================================
 
-        const total = allOriginal[letter].strokes.length;
-        const picked = [...letterPicks[letter]].sort((a, b) => a - b);
-        const hasManual = letter in MANUAL_KEEP;
-        const matchesManual = hasManual && JSON.stringify(picked) === JSON.stringify(MANUAL_KEEP[letter]);
-        const isAll = picked.length === total;
-
-        let status = '';
-        if (MERGED_LETTERS.has(letter)) {
-            status = '<span class="status" style="color:#60a5fa">MERGED 0+1</span>';
-        } else if (hasManual && matchesManual) {
-            status = '<span class="status status-done">current</span>';
-        } else if (hasManual && !matchesManual) {
-            status = '<span class="status diff-note">modified</span>';
-        } else if (!hasManual && !isAll) {
-            status = '<span class="status status-needs">NEW pick</span>';
-        } else {
-            status = '<span class="status" style="color:#555">all strokes</span>';
-        }
-        const pickDisplay = MERGED_LETTERS.has(letter) ? 'merged' : picked.join(', ');
-        label.innerHTML = `${letter} ${status} <span class="pick-line">[<span class="indices">${pickDisplay}</span>]</span>`;
-
-        // Update button states
-        buttons.forEach((btn, i) => {
-            btn.className = `stroke-btn sc${i} ${letterPicks[letter].has(i) ? 'on' : 'off'}`;
+    const tabsEl = document.getElementById('tabs');
+    TABS.forEach(tab => {
+        const btn = document.createElement('button');
+        btn.className = 'tab' + (tab.id === currentTab ? ' active' : '');
+        const multiCount = Object.values(dataSets[tab.id]).filter(d => d.strokes.length > 1).length;
+        btn.innerHTML = `${tab.label} <span class="count">${multiCount} multi-stroke</span>`;
+        btn.addEventListener('click', () => {
+            currentTab = tab.id;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            buildGrid(tab.id);
         });
-    }
-
-    const cells = {};
-
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(letter => {
-        const strokes = allOriginal[letter].strokes;
-        const total = strokes.length;
-
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-
-        const canvasWrap = document.createElement('div');
-        canvasWrap.className = 'canvases';
-
-        const mapCanvas = document.createElement('canvas');
-        mapCanvas.width = CW; mapCanvas.height = CH;
-        mapCanvas.title = 'Stroke map (colored paths)';
-        canvasWrap.appendChild(mapCanvas);
-
-        const sqCanvas = document.createElement('canvas');
-        sqCanvas.width = CW; sqCanvas.height = CH;
-        sqCanvas.title = 'Squiggle result';
-        canvasWrap.appendChild(sqCanvas);
-
-        cell.appendChild(canvasWrap);
-
-        const info = document.createElement('div');
-        info.className = 'info';
-
-        const label = document.createElement('div');
-        label.className = 'letter-head';
-        info.appendChild(label);
-
-        const toggles = document.createElement('div');
-        toggles.className = 'stroke-toggles';
-        const buttons = [];
-        for (let i = 0; i < total; i++) {
-            const btn = document.createElement('button');
-            btn.textContent = i;
-            btn.addEventListener('click', () => {
-                if (letterPicks[letter].has(i)) {
-                    if (letterPicks[letter].size > 1) letterPicks[letter].delete(i);
-                } else {
-                    letterPicks[letter].add(i);
-                }
-                updateCell(letter);
-            });
-            toggles.appendChild(btn);
-            buttons.push(btn);
-        }
-        info.appendChild(toggles);
-
-        cell.appendChild(info);
-        grid.appendChild(cell);
-
-        cells[letter] = { mapCanvas, sqCanvas, label, buttons, cell };
-        updateCell(letter);
+        tabsEl.appendChild(btn);
     });
+
+    buildGrid(currentTab);
     </script>
 </body>
 </html>
