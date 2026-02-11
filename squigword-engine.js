@@ -201,21 +201,99 @@ for (const [char, data] of Object.entries(HERSHEY_SCRIPT)) {
 // Simplify Script capitals — Hershey uses multiple overlapping strokes for pen plotters
 // which create ugly duplicate rainbow ropes in squiggle rendering. Keep only essential strokes.
 const SCRIPT_KEEP = {
-    'C': [0],         // main curve (drop overlapping secondary sweep)
-    'F': [0, 1],      // main body (drop crossbar ticks)
-    'G': [0, 2],      // main curve + bottom section (drop short connectors)
-    'K': [0, 3, 5],   // stem + upper arm + lower leg (drop duplicates)
-    'O': [0],         // main loop (drop overlapping secondary)
-    'P': [0, 1, 2],   // stem + body + bowl (drop narrow connector)
-    'Q': [0, 2],      // main loop + tail (drop overlapping secondary)
-    'R': [0, 1, 2, 5],// stem + body + bowl + leg (drop duplicates)
-    'T': [0, 1],      // main body (drop crossbar tick)
-    'Y': [0, 1, 3],   // both arms + descent (drop short connector)
-    'Z': [0, 1],      // main body (drop crossbar tick)
+    'A': [0, 1, 3],
+    'B': [1, 2, 4],
+    'C': [0],
+    'D': [1],
+    'E': [0, 2],
+    'F': [1, 3],
+    'G': [0, 2],
+    'H': [0, 2],
+    'I': [1],
+    'J': [1],
+    'K': [0, 3, 5],
+    // L: all strokes (2) — no filtering needed
+    'M': [0, 2, 3, 4],
+    'N': [0, 1, 3],
+    'O': [0],
+    'P': [1, 2],
+    'Q': [0, 2],
+    'R': [1, 2, 5],
+    // S: single stroke — no filtering needed
+    'T': [1],
+    'U': [0, 1, 2],
+    'V': [1],
+    'W': [0, 2, 3, 5],
+    'X': [0, 2],
+    'Y': [0, 1, 3],
+    'Z': [1],
 };
 for (const [ch, keep] of Object.entries(SCRIPT_KEEP)) {
     if (FONT_SCRIPT[ch]) {
         FONT_SCRIPT[ch].strokes = keep.map(i => FONT_SCRIPT[ch].strokes[i]).filter(Boolean);
+    }
+}
+
+// Merge overlapping strokes — some capitals have two strokes that share a middle section.
+// Instead of rendering both (double rainbow rope) or dropping one (losing detail),
+// splice them into one continuous stroke: A's unique start → overlap transition → B's unique end.
+function mergeOverlappingStrokes(strokeA, strokeB, threshold) {
+    // Find the first point in A that's close to any point in B (entering overlap zone)
+    let bestAi = -1, bestBi = -1, bestDist = Infinity;
+    for (let ai = Math.floor(strokeA.length * 0.2); ai < strokeA.length; ai++) {
+        for (let bi = 0; bi < Math.ceil(strokeB.length * 0.8); bi++) {
+            const dx = strokeA[ai][0] - strokeB[bi][0];
+            const dy = strokeA[ai][1] - strokeB[bi][1];
+            const d = dx * dx + dy * dy;
+            if (d < bestDist) { bestDist = d; bestAi = ai; bestBi = bi; }
+        }
+    }
+    if (bestDist > threshold * threshold) {
+        // No close overlap found — just concatenate
+        return [...strokeA, ...strokeB];
+    }
+    // Cut A at the overlap point, pick up B from there
+    return [...strokeA.slice(0, bestAi), ...strokeB.slice(bestBi)];
+}
+
+// Letters needing stroke merges: [strokeIndex0, strokeIndex1] from ORIGINAL (pre-KEEP) strokes
+const SCRIPT_MERGE = {
+    'L': [0, 1],   // strokes overlap in the middle descender
+    'U': [0, 1],   // strokes overlap at the top
+    'V': [0, 1],   // strokes overlap at the top
+    'Y': [0, 1],   // strokes overlap at the top
+};
+for (const [ch, [idxA, idxB]] of Object.entries(SCRIPT_MERGE)) {
+    if (!FONT_SCRIPT[ch]) continue;
+    const origA = decodeHersheyFont(HERSHEY_SCRIPT[ch]).strokes[idxA];
+    const origB = decodeHersheyFont(HERSHEY_SCRIPT[ch]).strokes[idxB];
+    if (!origA || !origB) continue;
+    // Compute threshold from letter bounding box (8% of bbox diagonal)
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const s of [origA, origB]) for (const [x, y] of s) {
+        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+    const diag = Math.sqrt((maxX - minX) ** 2 + (maxY - minY) ** 2);
+    const merged = mergeOverlappingStrokes(origA, origB, diag * 0.08);
+    // Replace the kept strokes: remove originals, insert merged
+    const currentStrokes = FONT_SCRIPT[ch].strokes;
+    // For L: both strokes were kept (all strokes). Replace with single merged.
+    // For U: strokes [0,1,2] kept. Replace 0+1 with merged, keep 2.
+    // For V: only stroke [1] was kept. Replace with merged (covers 0+1).
+    if (ch === 'L') {
+        FONT_SCRIPT[ch].strokes = [merged];
+    } else if (ch === 'U') {
+        // Kept strokes were [0,1,2] from original. Merge 0+1, keep 2.
+        const origStrokes = decodeHersheyFont(HERSHEY_SCRIPT[ch]).strokes;
+        FONT_SCRIPT[ch].strokes = [merged, origStrokes[2]];
+    } else if (ch === 'V') {
+        // Only stroke [1] was kept, but merged is better. Use merged alone.
+        FONT_SCRIPT[ch].strokes = [merged];
+    } else if (ch === 'Y') {
+        // Kept strokes were [0,1,3] from original. Merge 0+1, keep 3.
+        const origStrokes = decodeHersheyFont(HERSHEY_SCRIPT[ch]).strokes;
+        FONT_SCRIPT[ch].strokes = [merged, origStrokes[3]];
     }
 }
 
