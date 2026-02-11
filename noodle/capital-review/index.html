@@ -25,7 +25,7 @@
         }
         .cell.single-stroke { opacity: 0.6; }
         .canvases { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
-        .canvases canvas { border-radius: 4px; display: block; }
+        .canvases canvas { border-radius: 4px; display: block; cursor: pointer; }
         .info { flex: 1; min-width: 0; }
         .letter-head { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
         .status { font-size: 11px; font-weight: 500; margin-left: 6px; }
@@ -50,11 +50,42 @@
         .sc4 { border-color: #c084fc; background: rgba(192,132,252,0.15); color: #c084fc; }
         .sc5 { border-color: #fb7185; background: rgba(251,113,133,0.15); color: #fb7185; }
         .sc0.off,.sc1.off,.sc2.off,.sc3.off,.sc4.off,.sc5.off { background: transparent; }
+
+        .controls-bar {
+            display: flex; align-items: center; gap: 16px; margin-bottom: 12px;
+            padding: 8px 12px; background: #111; border: 1px solid #222; border-radius: 8px;
+        }
+        .controls-bar label { font-size: 12px; color: #888; white-space: nowrap; }
+        .controls-bar input[type="range"] { width: 120px; accent-color: #a855f7; }
+        .speed-val { font-size: 12px; color: #a855f7; font-family: 'JetBrains Mono', monospace; min-width: 30px; }
+        .animate-btn {
+            padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            font-family: inherit; cursor: pointer; border: 1px solid #333; background: #1a1a1a; color: #ccc;
+            transition: all 0.12s;
+        }
+        .animate-btn:hover { background: #222; color: #fff; }
+        .animate-btn.active { background: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.4); color: #a855f7; }
+        .cell.animating { border-color: rgba(168, 85, 247, 0.4); }
+        .rev-btn {
+            width: 28px; height: 28px; border-radius: 4px; border: 1px solid #333;
+            background: #1a1a1a; color: #666; font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.1s;
+        }
+        .rev-btn:hover { color: #ccc; border-color: #555; }
+        .rev-btn.on { background: rgba(96, 165, 250, 0.2); border-color: rgba(96, 165, 250, 0.4); color: #60a5fa; }
     </style>
 </head>
 <body>
     <h1>SquigWord — Stroke Picker</h1>
     <div class="subtitle">Click numbered buttons to toggle strokes. Stroke map (top) shows colored paths. Squiggle (bottom) shows result. Dimmed = single stroke, no action needed.</div>
+    <div class="controls-bar">
+        <button class="animate-btn" id="animateAll">Animate All</button>
+        <button class="animate-btn" id="stopAll">Stop All</button>
+        <label>Speed</label>
+        <input type="range" id="speedSlider" min="5" max="25" value="5">
+        <span class="speed-val" id="speedVal">5</span>
+        <span style="font-size:11px;color:#555">Double-click a letter to animate it</span>
+    </div>
     <div class="tabs" id="tabs"></div>
     <div class="grid" id="grid"></div>
 
@@ -150,12 +181,14 @@
         { id: 'script-upper', label: 'Script Caps', font: 'Script', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
         { id: 'script-lower', label: 'Script Lower', font: 'Script', chars: 'abcdefghijklmnopqrstuvwxyz' },
         { id: 'allure-upper', label: 'Allure Caps', font: 'Allure', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
+        { id: 'allure-lower', label: 'Allure Lower', font: 'Allure', chars: 'abcdefghijklmnopqrstuvwxyz' },
     ];
 
     const dataSets = {};
     dataSets['script-upper'] = buildDataSet('Script', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', RAW_HERSHEY_UPPER);
     dataSets['script-lower'] = buildDataSet('Script', 'abcdefghijklmnopqrstuvwxyz', RAW_HERSHEY_LOWER);
     dataSets['allure-upper'] = buildDataSet('Allure', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', null);
+    dataSets['allure-lower'] = buildDataSet('Allure', 'abcdefghijklmnopqrstuvwxyz', null);
 
     // Merged letters (use engine data directly)
     const SCRIPT_MERGED = new Set(['L', 'U', 'V', 'Y']);
@@ -294,6 +327,242 @@
     }
 
     // ============================================
+    // ANIMATION
+    // ============================================
+
+    // ============================================
+    // ANIMATION ORIENTATION
+    // ============================================
+
+    // Per-letter animation overrides.
+    // order: draw strokes in this order (original font stroke indices)
+    // reversePos: Set of POSITIONS (0-indexed in order) to explicitly reverse
+    // keepFirst: true = keep first stroke's original direction (skip auto-orient)
+    // Letters NOT listed use the auto-heuristic (top/bottom-start + chaining).
+    const SCRIPT_UPPER_ANIM = {
+        'A': { order: [0, 1, 3], reversePos: new Set([0]) },     // stroke 0: bottom-left → up, then 1+3 chain
+        'B': { order: [2, 1, 4] },                                // stroke 2: left side first, then 1+4 chain
+        'I': { reversePos: new Set([0]) },                        // flip single stroke
+        'M': { reversePos: new Set([0]) },                        // stroke 0: bottom-left → up, then 2,3,4 chain L→R
+        'N': { reversePos: new Set([0]) },                        // stroke 0: bottom-left → up, then 1,3 chain L→R
+        'P': { order: [2, 1] },                                   // loop (2) first, then stem (1)
+        'R': { order: [2, 1, 5] },                                // loop (2) first, then stem (1), then leg (5)
+        'S': { keepFirst: true },                                  // keep original direction (bottom-left → up)
+    };
+    const SCRIPT_LOWER_ANIM = {
+        'c': { keepFirst: true },                                  // raw direction is correct
+        'h': { keepFirst: true },                                  // ascender starts from top
+        'k': { keepFirst: true, reversePos: new Set([1]) },       // ascender raw, stroke 1 flipped
+        'm': { keepFirst: true },                                  // raw direction is correct
+        'n': { keepFirst: true },                                  // raw direction is correct
+        'o': { keepFirst: true },                                  // raw direction is correct
+        'p': { keepFirst: true, reversePos: new Set([1]) },       // descender raw, stroke 1 flipped
+        's': { keepFirst: true },                                  // raw direction is correct
+        't': { keepFirst: true, reversePos: new Set([1, 2]) },    // raw direction, strokes 1+2 flipped
+    };
+
+    function dist2(a, b) {
+        const dx = a[0] - b[0], dy = a[1] - b[1];
+        return dx * dx + dy * dy;
+    }
+
+    // Auto-orient first stroke: capitals from top, lowercase from bottom
+    function orientFirstStroke(stroke, isUpper) {
+        if (!stroke || stroke.length < 2) return stroke;
+        let minY = Infinity, maxY = -Infinity;
+        for (const [, y] of stroke) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+        const yRange = maxY - minY;
+        const startY = stroke[0][1], endY = stroke[stroke.length - 1][1];
+        const yDiff = Math.abs(startY - endY);
+
+        if (yRange > 1 && yDiff / yRange > 0.15) {
+            if (isUpper) {
+                if (startY < endY) return [...stroke].reverse();
+            } else {
+                if (startY > endY) return [...stroke].reverse();
+            }
+        } else {
+            if (stroke[0][0] > stroke[stroke.length - 1][0]) return [...stroke].reverse();
+        }
+        return stroke;
+    }
+
+    // Orient strokes for animation. If overrides provided, use explicit reversals.
+    // Otherwise auto-orient first stroke + chain the rest.
+    function orientStrokesForAnimation(strokes, isUpper, overrides) {
+        if (!strokes || strokes.length === 0) return strokes;
+        const result = [];
+        const revSet = overrides ? (overrides.reversePos || new Set()) : new Set();
+        const hasOverride = !!overrides;
+
+        for (let i = 0; i < strokes.length; i++) {
+            const s = strokes[i];
+            if (!s || s.length < 2) { result.push(s); continue; }
+
+            if (i === 0) {
+                // First stroke: reversePos reverses raw, keepFirst keeps raw, else auto-orient
+                if (revSet.has(0)) {
+                    result.push([...s].reverse());
+                } else if (overrides && overrides.keepFirst) {
+                    result.push(s);
+                } else {
+                    result.push(orientFirstStroke(s, isUpper));
+                }
+            } else {
+                // Subsequent strokes: chain from previous end, reversePos flips the chain decision
+                const prevEnd = result[i - 1][result[i - 1].length - 1];
+                const dStart = dist2(s[0], prevEnd);
+                const dEnd = dist2(s[s.length - 1], prevEnd);
+                const chainReverse = dEnd < dStart;
+                const shouldReverse = revSet.has(i) ? !chainReverse : chainReverse;
+                result.push(shouldReverse ? [...s].reverse() : s);
+            }
+        }
+        return result;
+    }
+
+    function getParticles(tabId, ch, forAnimation) {
+        const tab = TABS.find(t => t.id === tabId);
+        const key = pickKey(tabId, ch);
+        const data = dataSets[tabId][ch];
+        const isScriptMerged = tabId === 'script-upper' && SCRIPT_MERGED.has(ch);
+        const isAllureMerged = tabId === 'allure-upper' && ALLURE_MERGED.has(ch);
+        const config = {
+            seed: SEED, fontStyle: tab.font,
+            rotation: 0, slant: 0, loopWidth: 1.0, loopHeight: 1.0, colorOffset: 0
+        };
+        const glyph = SquigWord.FONTS[tab.font].glyphs[ch];
+        if (!glyph) return [];
+        const saved = glyph.strokes;
+        const isUpper = tabId.includes('upper');
+
+        // Merged letters: orient the merged paths
+        if (isScriptMerged || isAllureMerged) {
+            if (forAnimation) {
+                glyph.strokes = orientStrokesForAnimation(saved, isUpper, null);
+            }
+            const { particles } = SquigWord.computeDrawOps(ch, CW, CH, 'Normal', 20, config);
+            glyph.strokes = saved;
+            return particles;
+        }
+
+        // Get override if available
+        const ANIM_TABLES = {
+            'script-upper': SCRIPT_UPPER_ANIM,
+            'script-lower': SCRIPT_LOWER_ANIM,
+        };
+        const animTable = forAnimation ? ANIM_TABLES[tabId] : null;
+        const override = animTable ? animTable[ch] : null;
+
+        // Determine stroke order
+        let strokeOrder;
+        if (override && override.order) {
+            strokeOrder = override.order;
+        } else {
+            strokeOrder = [...picks[key]].sort((a, b) => a - b);
+        }
+        if (strokeOrder.length === 0) return [];
+
+        const pickedStrokes = strokeOrder.map(i => data.strokes[i]).filter(Boolean);
+        glyph.strokes = forAnimation ? orientStrokesForAnimation(pickedStrokes, isUpper, override) : pickedStrokes;
+        const { particles } = SquigWord.computeDrawOps(ch, CW, CH, 'Normal', 20, config);
+        glyph.strokes = saved;
+        return particles;
+    }
+
+    function drawParticlesPartial(ctx, particles, upTo) {
+        const n = Math.min(upTo, particles.length);
+        for (let i = 0; i < n; i++) {
+            for (const op of particles[i]) {
+                if (op.fill) continue;
+                ctx.beginPath(); ctx.arc(op.x, op.y, op.radius, 0, Math.PI * 2);
+                if (op.stroke) { ctx.strokeStyle = op.stroke; ctx.lineWidth = op.lineWidth; ctx.stroke(); }
+            }
+        }
+        for (let i = 0; i < n; i++) {
+            for (const op of particles[i]) {
+                if (!op.fill) continue;
+                ctx.beginPath(); ctx.arc(op.x, op.y, op.radius, 0, Math.PI * 2);
+                ctx.fillStyle = op.fill; ctx.fill();
+                if (op.stroke) { ctx.strokeStyle = op.stroke; ctx.lineWidth = op.lineWidth; ctx.stroke(); }
+            }
+        }
+    }
+
+    const anims = {}; // key -> { particles, canvas, cell, progress, active }
+    let speedVal = 15;
+    const speedSlider = document.getElementById('speedSlider');
+    const speedDisplay = document.getElementById('speedVal');
+    speedSlider.addEventListener('input', () => {
+        speedVal = parseInt(speedSlider.value);
+        speedDisplay.textContent = speedVal;
+    });
+
+    const reversed = {}; // key -> true if user toggled reverse
+
+    function startAnim(key) {
+        const a = anims[key];
+        if (!a || a.active) return;
+        a.particles = getParticles(a.tabId, a.ch, true);
+        if (reversed[key]) a.particles.reverse();
+        a.progress = 0;
+        a.active = true;
+        a.cell.classList.add('animating');
+    }
+    function stopAnim(key) {
+        const a = anims[key];
+        if (!a) return;
+        a.active = false;
+        a.cell.classList.remove('animating');
+        // Redraw fully
+        renderSquiggle(a.canvas.getContext('2d'), a.tabId, a.ch);
+    }
+    function toggleAnim(key) {
+        const a = anims[key];
+        if (!a) return;
+        if (a.active) stopAnim(key);
+        else startAnim(key);
+    }
+
+    let animRunning = false;
+    function animLoop(ts) {
+        let anyActive = false;
+        for (const key of Object.keys(anims)) {
+            const a = anims[key];
+            if (!a.active) continue;
+            anyActive = true;
+            a.progress += speedVal;
+            const ctx = a.canvas.getContext('2d');
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, CW, CH);
+            drawParticlesPartial(ctx, a.particles, a.progress);
+            if (a.progress >= a.particles.length + 30) {
+                // Hold for ~30 frames at the end, then restart
+                a.progress = 0;
+            }
+        }
+        if (anyActive) {
+            requestAnimationFrame(animLoop);
+        } else {
+            animRunning = false;
+        }
+    }
+    function ensureAnimLoop() {
+        if (!animRunning) {
+            animRunning = true;
+            requestAnimationFrame(animLoop);
+        }
+    }
+
+    document.getElementById('animateAll').addEventListener('click', () => {
+        for (const key of Object.keys(anims)) startAnim(key);
+        ensureAnimLoop();
+    });
+    document.getElementById('stopAll').addEventListener('click', () => {
+        for (const key of Object.keys(anims)) stopAnim(key);
+    });
+
+    // ============================================
     // GRID BUILDING
     // ============================================
 
@@ -301,6 +570,9 @@
     const grid = document.getElementById('grid');
 
     function buildGrid(tabId) {
+        // Stop all animations and clear state on tab switch
+        for (const key of Object.keys(anims)) stopAnim(key);
+        for (const key of Object.keys(anims)) delete anims[key];
         grid.innerHTML = '';
         const tab = TABS.find(t => t.id === tabId);
 
@@ -352,11 +624,38 @@
                 toggles.appendChild(btn);
                 buttons.push(btn);
             }
+            // Reverse direction button
+            const revBtn = document.createElement('button');
+            revBtn.className = 'rev-btn';
+            revBtn.textContent = '\u21BA';
+            revBtn.title = 'Reverse animation direction';
+            revBtn.addEventListener('click', ((k, rb) => () => {
+                reversed[k] = !reversed[k];
+                rb.className = 'rev-btn' + (reversed[k] ? ' on' : '');
+                // If animating, recompute with new direction
+                if (anims[k] && anims[k].active) {
+                    anims[k].particles = getParticles(anims[k].tabId, anims[k].ch, true);
+                    if (reversed[k]) anims[k].particles.reverse();
+                    anims[k].progress = 0;
+                }
+            })(key, revBtn));
+            toggles.appendChild(revBtn);
+
             info.appendChild(toggles);
             cell.appendChild(info);
             grid.appendChild(cell);
 
+            // Register animation state for this cell
+            anims[key] = { tabId, ch, canvas: sqCanvas, cell, particles: [], progress: 0, active: false };
+            sqCanvas.addEventListener('dblclick', ((k) => () => { toggleAnim(k); ensureAnimLoop(); })(key));
+
             function update() {
+                // If animating, recompute particles on pick change
+                if (anims[key] && anims[key].active) {
+                    anims[key].particles = getParticles(tabId, ch, true);
+                    if (reversed[key]) anims[key].particles.reverse();
+                    anims[key].progress = 0;
+                }
                 renderStrokeMap(mapCanvas.getContext('2d'), tabId, ch);
                 renderSquiggle(sqCanvas.getContext('2d'), tabId, ch);
 
