@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SquigWord Dev</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d0f;
+            --card: #161619;
+            --input: #1e1e22;
+            --text: #ffffff;
+            --dim: #9ca3af;
+            --muted: #6b7280;
+            --accent: #a855f7;
+            --glow: rgba(168, 85, 247, 0.2);
+            --border: rgba(255, 255, 255, 0.08);
+        }
+        .light-mode {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --input: #f0f0f2;
+            --text: #1a1a1a;
+            --dim: #4b5563;
+            --muted: #6b7280;
+            --accent: #7c3aed;
+            --glow: rgba(124, 58, 237, 0.15);
+            --border: rgba(0, 0, 0, 0.08);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { overflow-x: hidden; }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .app { max-width: 1100px; width: 100%; margin: 0 auto; padding: 12px 16px; display: flex; flex-direction: column; min-height: 100vh; }
+        .canvas-row { display: flex; gap: 10px; margin-bottom: 10px; flex-shrink: 0; align-items: center; }
+        .canvas-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 6px; position: relative; flex: 5; min-width: 0; }
+        .ref-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 6px; position: relative; flex: 3; min-width: 0; }
+        canvas { width: 100%; display: block; border-radius: 6px; cursor: pointer; }
+        .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; flex-shrink: 0; }
+        .field { margin-bottom: 14px; }
+        .field:last-child { margin-bottom: 0; }
+        .field-label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .field-row { display: flex; gap: 16px; margin-bottom: 14px; }
+        .flex-grow { flex: 1; min-width: 0; }
+        .input-group { display: flex; gap: 6px; align-items: center; }
+        input[type="text"], input[type="number"] { background: var(--input); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 16px; font-family: inherit; color: var(--text); outline: none; transition: border 0.15s; }
+        input:focus { border-color: var(--accent); }
+        input[type="text"] { flex: 1; min-width: 0; }
+        input[type="number"] { width: 100px; font-family: 'JetBrains Mono', monospace; text-align: center; }
+        .btn-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .btn { padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer; border: 1px solid var(--border); background: var(--input); color: var(--dim); transition: all 0.12s; white-space: nowrap; }
+        .btn:hover { background: var(--bg); color: var(--text); }
+        .btn.active { background: rgba(168, 85, 247, 0.35); border-color: rgba(168, 85, 247, 0.5); color: #e9d5ff; }
+        .light-mode .btn.active { background: rgba(124, 58, 237, 0.2); border-color: rgba(124, 58, 237, 0.4); color: #6d28d9; }
+        .btn.resolved { border-color: rgba(96, 165, 250, 0.6); color: var(--text); }
+        .light-mode .btn.resolved { border-color: rgba(59, 130, 246, 0.5); color: var(--text); }
+        .icon-btn { width: 38px; height: 38px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.15s; }
+        .icon-btn:hover { background: var(--glow); border-color: var(--accent); color: var(--text); }
+        .icon-btn.playing { background: var(--accent); color: white; }
+        .traits { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 14px; color: var(--muted); padding-top: 8px; }
+        .trait-val { font-weight: 600; color: var(--text); margin-right: 2px; }
+        .color-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; vertical-align: middle; }
+        .action-row { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); align-items: center; }
+        .speed-control { display: flex; align-items: center; gap: 6px; margin-left: 8px; }
+        .speed-control label { font-size: 11px; color: var(--muted); }
+        .speed-slider { width: 80px; height: 4px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
+        .speed-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+        .footer { text-align: center; padding: 8px; font-size: 12px; color: var(--muted); flex-shrink: 0; margin-top: auto; }
+        .shape-grid { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+        .slider-row { display: flex; align-items: center; gap: 8px; flex: 1 1 45%; min-width: 200px; }
+        .slider-row label { font-size: 11px; color: var(--dim); min-width: 52px; }
+        .slider-row input[type="range"] { flex: 1; height: 4px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
+        .slider-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+        .slider-val { font-size: 11px; color: var(--text); min-width: 36px; text-align: right; font-family: 'JetBrains Mono', monospace; }
+        .slider-row.disabled { opacity: 0.3; pointer-events: none; }
+        .shape-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .shape-header .field-label { margin-bottom: 0; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="canvas-row">
+            <div class="canvas-wrap"><canvas id="canvas" width="1000" height="400"></canvas></div>
+            <div class="ref-wrap">
+                <canvas id="refCanvas" width="600" height="300"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="field-row">
+                <div class="field flex-grow">
+                    <label class="field-label">TEXT</label>
+                    <div class="input-group">
+                        <input type="text" id="textInput" value="Squiggles" maxlength="20" spellcheck="false">
+                        <button class="icon-btn" id="randWordBtn" title="Random word">&#8635;</button>
+                        <button class="icon-btn" id="alphaLowerBtn" title="Cycle lowercase abcd→efgh→..." style="font-size:12px;font-weight:600;">az</button>
+                        <button class="icon-btn" id="alphaUpperBtn" title="Cycle uppercase ABCD→EFGH→..." style="font-size:12px;font-weight:600;">AZ</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="field-label">SEED</label>
+                    <div class="input-group">
+                        <input type="number" id="seedInput" value="42">
+                        <button class="icon-btn" id="randSeedBtn" title="Random seed">&#8635;</button>
+                    </div>
+                </div>
+            </div>
+            <div class="field">
+                <label class="field-label">TYPE</label>
+                <div class="btn-row" id="typeBtns"></div>
+            </div>
+            <div class="field">
+                <label class="field-label">FONT</label>
+                <div class="btn-row" id="fontBtns"></div>
+            </div>
+            <div class="field">
+                <div class="shape-header">
+                    <label class="field-label">SHAPE</label>
+                    <button class="icon-btn" id="randomizeBtn" title="Randomize shape" style="width:28px;height:28px;font-size:13px;">&#9733;</button>
+                    <button class="icon-btn" id="randomizeAllBtn" title="Randomize shape + seed" style="width:28px;height:28px;font-size:13px;">&#9889;</button>
+                </div>
+                <div class="shape-grid">
+                    <div class="slider-row">
+                        <label>Rotation</label>
+                        <input type="range" id="rotationSlider" min="-0.0873" max="0.1745" step="0.002" value="0.03">
+                        <span class="slider-val" id="rotationVal">1.7&deg;</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Slant</label>
+                        <input type="range" id="slantSlider" min="-0.1745" max="0.1745" step="0.005" value="0">
+                        <span class="slider-val" id="slantVal">0&deg;</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Loop W</label>
+                        <input type="range" id="loopWidthSlider" min="0.75" max="1.2" step="0.02" value="1.0">
+                        <span class="slider-val" id="loopWidthVal">100%</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Loop H</label>
+                        <input type="range" id="loopHeightSlider" min="0.75" max="1.2" step="0.02" value="1.0">
+                        <span class="slider-val" id="loopHeightVal">100%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="traits" id="traits"></div>
+            <div class="action-row">
+                <button class="icon-btn" id="modeToggle" title="Toggle light/dark">&#9728;</button>
+                <button class="icon-btn" id="animateBtn" title="Watch it draw">&#9654;</button>
+                <div class="speed-control">
+                    <label>Speed</label>
+                    <input type="range" class="speed-slider" id="speedSlider" min="1" max="50" value="10">
+                    <span class="slider-val" id="speedVal" style="min-width:24px;">10</span>
+                </div>
+                <button class="btn" id="hyperBtn" title="Toggle Hyper Rainbow" style="margin-left:auto; font-size:12px; padding:6px 12px;">Hyper</button>
+                <button class="icon-btn" id="downloadBtn" title="Download PNG">&#8595;</button>
+            </div>
+        </div>
+        <footer class="footer">SquigWord Dev &middot; inspired by <span class="credit">snowfro</span></footer>
+    </div>
+
+<script src="squigword-engine.js"></script>
+<script>
+// ============================================
+// CANVAS SETUP
+// ============================================
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const refCanvas = document.getElementById('refCanvas');
+const refCtx = refCanvas.getContext('2d');
+
+// ============================================
+// STATE (UI-specific)
+// ============================================
+
+const state = {
+    text: 'Squiggles',
+    seed: 42,
+    forceType: 'Auto',
+    fontStyle: 'Allure',
+    bgIndex: 7,
+    darkMode: true,
+    drawAnimating: false,
+    drawProgress: 0,
+    drawSpeed: 10,
+    rotation: 0.03,
+    slant: 0,
+    loopWidth: 1.0,
+    loopHeight: 1.0,
+    forceHyper: null,
+    // Color cycling state
+    colorCycling: false,
+    cycleSpeed: 0.08,
+    colorOffset: 0,
+    cycleAnimFrame: null,
+};
+
+const TYPES = ['Auto', 'Normal', 'Bold', 'Slinky', 'Pipe', 'Fuzzy', 'Ribbed'];
+const FONT_NAMES = ['Allure', 'Script'];
+
+// ============================================
+// CONFIG BUILDER
+// ============================================
+
+function buildConfig() {
+    return {
+        seed: state.seed,
+        fontStyle: state.fontStyle,
+        rotation: state.rotation,
+        slant: state.slant,
+        loopWidth: state.loopWidth,
+        loopHeight: state.loopHeight,
+        colorOffset: state.colorOffset
+    };
+}
+
+// ============================================
+// RENDER
+// ============================================
+
+let lastTraits = null;
+
+function render() {
+    const width = canvas.width;
+    const height = canvas.height;
+    const config = buildConfig();
+
+    ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
+    ctx.fillRect(0, 0, width, height);
+
+    const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+    lastTraits = traits;
+
+    // Update hyper button visual
+    document.getElementById('hyperBtn').classList.toggle('active', traits.hyperRainbow);
+    updateButtons();
+
+    if (!state.text.trim()) {
+        const startHue = ((traits.startColor + state.colorOffset) % 255 + 255) % 255;
+        updateTraits(traits, startHue, startHue);
+        return;
+    }
+
+    const { particles, adjustedSpread } = SquigWord.computeDrawOps(
+        state.text, width, height, traits.type, traits.spread, config
+    );
+    SquigWord.drawParticles(ctx, particles);
+
+    const effectiveStartColor = ((traits.startColor + state.colorOffset) % 255 + 255) % 255;
+    const totalColor = particles.length;
+    const endHue = traits.reverse
+        ? 255 - (((totalColor / adjustedSpread) + effectiveStartColor) % 255)
+        : (((totalColor / adjustedSpread) + effectiveStartColor) % 255);
+
+    updateTraits(traits, effectiveStartColor, endHue);
+
+    SquigWord.renderSnowfro(refCtx, refCanvas.width, refCanvas.height, {
+        seed: state.seed,
+        forceType: state.forceType,
+        forceHyper: state.forceHyper,
+        bgIndex: state.bgIndex,
+        colorOffset: state.colorOffset
+    });
+}
+
+// ============================================
+// COLOR CYCLING (NEW)
+// ============================================
+
+function startColorCycling() {
+    if (state.drawAnimating) stopDrawAnimation(); // mutually exclusive
+    state.colorCycling = true;
+    colorCycleLoop();
+}
+
+function stopColorCycling() {
+    state.colorCycling = false;
+    if (state.cycleAnimFrame) {
+        cancelAnimationFrame(state.cycleAnimFrame);
+        state.cycleAnimFrame = null;
+    }
+}
+
+function colorCycleLoop() {
+    if (!state.colorCycling) return;
+    state.colorOffset += state.cycleSpeed;
+    render();
+    state.cycleAnimFrame = requestAnimationFrame(colorCycleLoop);
+}
+
+// ============================================
+// DRAW ANIMATION
+// ============================================
+
+let cachedParticles = null;
+
+function startDrawAnimation() {
+    if (state.drawAnimating) { stopDrawAnimation(); return; }
+    if (state.colorCycling) stopColorCycling(); // mutually exclusive
+    state.drawAnimating = true;
+    state.drawProgress = 0;
+    document.getElementById('animateBtn').textContent = '\u23F9';
+    document.getElementById('animateBtn').classList.add('playing');
+
+    const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+    const config = buildConfig();
+    const result = SquigWord.computeDrawOps(state.text, canvas.width, canvas.height, traits.type, traits.spread, config);
+    cachedParticles = result.particles;
+    animateDrawing();
+}
+
+function stopDrawAnimation() {
+    state.drawAnimating = false;
+    document.getElementById('animateBtn').textContent = '\u25B6';
+    document.getElementById('animateBtn').classList.remove('playing');
+    render();
+}
+
+function animateDrawing() {
+    if (!state.drawAnimating || !cachedParticles || cachedParticles.length === 0) {
+        stopDrawAnimation(); return;
+    }
+    const total = cachedParticles.length;
+    const toDraw = Math.min(Math.floor(state.drawProgress), total);
+    ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    SquigWord.drawParticles(ctx, cachedParticles.slice(0, toDraw));
+    state.drawProgress += state.drawSpeed * 3;
+    if (state.drawProgress >= total) { stopDrawAnimation(); }
+    else { requestAnimationFrame(animateDrawing); }
+}
+
+// ============================================
+// UI FUNCTIONS
+// ============================================
+
+function updateTraits(traits, startHue, endHue) {
+    const el = document.getElementById('traits');
+    if (!traits) { el.innerHTML = ''; return; }
+    const [sr, sg, sb] = SquigWord.hsbToRgb(startHue, 255, 255);
+    const [er, eg, eb] = SquigWord.hsbToRgb(endHue, 255, 255);
+    el.innerHTML = `
+        <span>${traits.hyperRainbow ? '<span class="trait-val" style="color:var(--accent)">Hyper</span> ' : ''}<span class="trait-val">${traits.type}</span> ${state.fontStyle}</span>
+        <span>spread <span class="trait-val">${traits.spread}</span>${state.forceHyper === null ? '' : state.forceHyper ? ' (forced)' : ' (off)'}</span>
+        <span>color <span class="trait-val">${Math.round(startHue)}</span>
+        <span class="color-dot" style="background:rgb(${sr},${sg},${sb});margin:0 4px"></span>
+        &rarr;
+        <span class="color-dot" style="background:rgb(${er},${eg},${eb});margin:0 4px"></span>
+        <span class="trait-val">${Math.round(endHue)}</span></span>
+    `;
+}
+
+function updateButtons() {
+    const resolvedType = lastTraits ? lastTraits.type : null;
+    document.querySelectorAll('#typeBtns .btn').forEach(btn => {
+        const name = btn.textContent;
+        if (name === 'Hyper') return; // hyper handled separately in render
+        btn.classList.toggle('active', name === state.forceType);
+        btn.classList.toggle('resolved', state.forceType === 'Auto' && name === resolvedType);
+    });
+    document.querySelectorAll('#fontBtns .btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === state.fontStyle);
+    });
+}
+
+function updateScriptLocks() {
+    const wRow = document.getElementById('loopWidthSlider').closest('.slider-row');
+    const hSlider = document.getElementById('loopHeightSlider');
+    if (state.fontStyle === 'Script') {
+        wRow.classList.add('disabled');
+        state.loopWidth = 1.0;
+        document.getElementById('loopWidthSlider').value = 1.0;
+        document.getElementById('loopWidthVal').textContent = '100%';
+        hSlider.min = '1.0';
+        if (state.loopHeight < 1.0) {
+            state.loopHeight = 1.0;
+            hSlider.value = 1.0;
+            document.getElementById('loopHeightVal').textContent = '100%';
+        }
+    } else {
+        wRow.classList.remove('disabled');
+        hSlider.min = '0.75';
+    }
+}
+
+function toggleDarkMode() {
+    state.darkMode = !state.darkMode;
+    document.body.classList.toggle('light-mode', !state.darkMode);
+    document.getElementById('modeToggle').textContent = state.darkMode ? '\u2600' : '\u263E';
+    state.bgIndex = state.darkMode ? 7 : 0;
+    render();
+}
+
+function downloadPNG() {
+    const link = document.createElement('a');
+    link.download = `squigword-${state.text}-${state.seed}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
+// ============================================
+// SETUP
+// ============================================
+
+function setup() {
+    // Type buttons
+    const typeBtns = document.getElementById('typeBtns');
+    TYPES.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.textContent = t;
+        btn.onclick = () => {
+            state.forceType = t;
+            updateButtons();
+            render();
+        };
+        typeBtns.appendChild(btn);
+    });
+
+    // Font buttons
+    const fontBtns = document.getElementById('fontBtns');
+    FONT_NAMES.forEach(f => {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.textContent = f;
+        btn.onclick = () => {
+            state.fontStyle = f;
+            updateButtons();
+            updateScriptLocks();
+            render();
+        };
+        fontBtns.appendChild(btn);
+    });
+
+    // Text input
+    document.getElementById('textInput').addEventListener('input', (e) => {
+        state.text = e.target.value;
+        render();
+    });
+
+    // Seed input
+    document.getElementById('seedInput').addEventListener('input', (e) => {
+        state.seed = parseInt(e.target.value) || 0;
+        render();
+    });
+
+    // Random word
+    const words = [
+        'Squiggles','Wiggly','Jiggly','Groovy','Loopy','Balloon','Jelly','Giggles','Wobbly','Bubbles',
+        'Noodle','Zigzag','Twisty','Curly','Swirly','Bouncy','Squishy','Fuzzy','Breezy','Snappy',
+        'Mellow','Ripple','Shimmer','Flutter','Groove','Jumble','Tangle','Doodle','Sprinkle','Twirl',
+        'Wavy','Floppy','Slinky','Bubbly','Zappy','Cosmic','Dreamy','Funky','Goofy','Jazzy',
+        'Quirky','Peppy','Zippy','Wacky','Dizzy','Glimmer','Sparkle','Wobble','Squish','Jiggle'
+    ];
+    document.getElementById('randWordBtn').addEventListener('click', () => {
+        state.text = words[Math.floor(Math.random() * words.length)];
+        state.seed = Math.floor(Math.random() * 100000);
+        document.getElementById('textInput').value = state.text;
+        document.getElementById('seedInput').value = state.seed;
+        render();
+    });
+
+    // Random seed
+    document.getElementById('randSeedBtn').addEventListener('click', () => {
+        state.seed = Math.floor(Math.random() * 100000);
+        document.getElementById('seedInput').value = state.seed;
+        render();
+    });
+
+    // Alphabet chunker — cycle through letters in groups of 4, wrap produces different groupings
+    let alphaLowerIdx = 0;
+    let alphaUpperIdx = 0;
+    function alphaChunk(alpha, idx) {
+        let s = '';
+        for (let i = 0; i < 4; i++) s += alpha[(idx + i) % 26];
+        return s;
+    }
+    document.getElementById('alphaLowerBtn').addEventListener('click', () => {
+        state.text = alphaChunk('abcdefghijklmnopqrstuvwxyz', alphaLowerIdx);
+        alphaLowerIdx = (alphaLowerIdx + 4) % 26;
+        document.getElementById('textInput').value = state.text;
+        render();
+    });
+    document.getElementById('alphaUpperBtn').addEventListener('click', () => {
+        state.text = alphaChunk('ABCDEFGHIJKLMNOPQRSTUVWXYZ', alphaUpperIdx);
+        alphaUpperIdx = (alphaUpperIdx + 4) % 26;
+        document.getElementById('textInput').value = state.text;
+        render();
+    });
+
+    // Shape sliders
+    document.getElementById('rotationSlider').addEventListener('input', (e) => {
+        state.rotation = parseFloat(e.target.value);
+        document.getElementById('rotationVal').innerHTML = (state.rotation * 180 / Math.PI).toFixed(1) + '&deg;';
+        render();
+    });
+    document.getElementById('slantSlider').addEventListener('input', (e) => {
+        state.slant = parseFloat(e.target.value);
+        document.getElementById('slantVal').innerHTML = (state.slant * 180 / Math.PI).toFixed(1) + '&deg;';
+        render();
+    });
+    document.getElementById('loopWidthSlider').addEventListener('input', (e) => {
+        state.loopWidth = parseFloat(e.target.value);
+        document.getElementById('loopWidthVal').textContent = Math.round(state.loopWidth * 100) + '%';
+        render();
+    });
+    document.getElementById('loopHeightSlider').addEventListener('input', (e) => {
+        state.loopHeight = parseFloat(e.target.value);
+        document.getElementById('loopHeightVal').textContent = Math.round(state.loopHeight * 100) + '%';
+        render();
+    });
+
+    // Randomize shape
+    function randomizeShapeSliders() {
+        const r = (min, max) => min + Math.random() * (max - min);
+        const isScript = state.fontStyle === 'Script';
+
+        state.rotation = r(-0.0873, 0.1745);
+        state.slant = r(-0.1745, 0.1745);
+        state.loopWidth = isScript ? 1.0 : r(0.75, 1.2);
+        state.loopHeight = isScript ? r(1.0, 1.2) : r(0.75, 1.2);
+
+        document.getElementById('rotationSlider').value = state.rotation;
+        document.getElementById('rotationVal').innerHTML = (state.rotation * 180 / Math.PI).toFixed(1) + '&deg;';
+        document.getElementById('slantSlider').value = state.slant;
+        document.getElementById('slantVal').innerHTML = (state.slant * 180 / Math.PI).toFixed(1) + '&deg;';
+        document.getElementById('loopWidthSlider').value = state.loopWidth;
+        document.getElementById('loopWidthVal').textContent = Math.round(state.loopWidth * 100) + '%';
+        document.getElementById('loopHeightSlider').value = state.loopHeight;
+        document.getElementById('loopHeightVal').textContent = Math.round(state.loopHeight * 100) + '%';
+    }
+
+    document.getElementById('randomizeBtn').addEventListener('click', () => {
+        randomizeShapeSliders();
+        render();
+    });
+
+    document.getElementById('randomizeAllBtn').addEventListener('click', () => {
+        state.seed = Math.floor(Math.random() * 10000);
+        document.getElementById('seedInput').value = state.seed;
+        randomizeShapeSliders();
+        render();
+    });
+
+    // Hyper toggle
+    document.getElementById('hyperBtn').addEventListener('click', () => {
+        // Cycle: null (auto) -> true (forced on) -> false (forced off) -> null
+        if (state.forceHyper === null) state.forceHyper = true;
+        else if (state.forceHyper === true) state.forceHyper = false;
+        else state.forceHyper = null;
+        render();
+    });
+
+    // Action row
+    document.getElementById('modeToggle').addEventListener('click', toggleDarkMode);
+    document.getElementById('downloadBtn').addEventListener('click', downloadPNG);
+    document.getElementById('animateBtn').addEventListener('click', startDrawAnimation);
+    document.getElementById('speedSlider').addEventListener('input', (e) => {
+        state.drawSpeed = parseInt(e.target.value);
+        document.getElementById('speedVal').textContent = state.drawSpeed;
+    });
+
+    // Canvas click — toggle color cycling
+    canvas.addEventListener('click', () => {
+        if (state.colorCycling) stopColorCycling();
+        else startColorCycling();
+    });
+
+    // Ref canvas click — also toggles color cycling
+    refCanvas.addEventListener('click', () => {
+        if (state.colorCycling) stopColorCycling();
+        else startColorCycling();
+    });
+
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT') return;
+        if (e.code === 'Space') {
+            e.preventDefault();
+            // Toggle background black/white
+            state.bgIndex = state.bgIndex === 7 ? 0 : 7;
+            render();
+        } else if (e.code === 'ArrowUp') {
+            e.preventDefault();
+            state.cycleSpeed = e.shiftKey ? 1.5 : Math.min(state.cycleSpeed + 0.02, 1.5);
+        } else if (e.code === 'ArrowDown') {
+            e.preventDefault();
+            state.cycleSpeed = e.shiftKey ? 0.02 : Math.max(state.cycleSpeed - 0.02, 0.02);
+        }
+    });
+
+    updateButtons();
+    updateScriptLocks();
+    render();
+}
+
+setup();
+</script>
+</body>
+</html>

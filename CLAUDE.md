@@ -53,6 +53,8 @@ Render user-typed text as Chromie Squiggle-style cursive using single-stroke fon
 
 | File | Purpose |
 |------|---------|
-| `squigword.html` | Main implementation |
+| `squigword-engine.js` | Shared rendering engine (fonts, parsing, rendering pipeline) |
+| `squigword.html` | User UI — clean, minimal controls, single canvas |
+| `squigword-dev.html` | Dev UI — all controls, reference squiggle, shape sliders |
 | `squigword-base.html` | Reference (vF with hand-authored fonts) |
 | `LESSONS.md` | What we've learned |
