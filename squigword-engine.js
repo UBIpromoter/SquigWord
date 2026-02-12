@@ -229,6 +229,7 @@ for (const [ch, [idxA, idxB]] of Object.entries(ALLURE_MERGE)) {
     FONT_ALLURE[ch].strokes = [merged, ...origStrokes.slice(2)];
 }
 
+
 const FONT_SCRIPT = {};
 for (const [char, data] of Object.entries(HERSHEY_SCRIPT)) {
     FONT_SCRIPT[char] = decodeHersheyFont(data);
@@ -375,6 +376,21 @@ function isCrossbar(stroke) {
     return dx > dy * 3 && dx > 100;
 }
 
+// Explicit secondary strokes per font: drawn after the word (like i dot, t crossbar)
+// Needed where isDot/isCrossbar geometric detection misses (too many pts in Hershey data)
+// Allure's geometric detectors already catch i/j dots and t crossbar; only x needs explicit
+const SECONDARY_STROKES = {
+    Script: {
+        'i': new Set([0]),   // dot (5pts, isDot needs ≤3)
+        'j': new Set([0]),   // dot (5pts)
+        't': new Set([0]),   // crossbar
+        'x': new Set([1]),   // cross
+    },
+    Allure: {
+        'x': new Set([1]),   // cross
+    },
+};
+
 function findYExtrema(pathPoints) {
     if (pathPoints.length < 2) return new Set([0, pathPoints.length - 1]);
     let minYIdx = 0, maxYIdx = 0;
@@ -495,8 +511,8 @@ function getSnowfroHeight(canvasHeight, type) {
 function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
     const FONT = getFontGlyphs(config.fontStyle);
     const FONT_Y_RANGE = getFontYRange(config.fontStyle);
-    const primaryPaths = [];
-    const secondaryPaths = [];
+    const allPaths = [];
+    let currentWordSecondary = []; // secondary strokes for the current word
 
     const isBoldType = type === 'Bold' || type === 'Pipe';
     let totalFontWidth = 0;
@@ -507,17 +523,18 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
         const boldSpacing = isBoldType ? (isUpper ? 0.08 : 0.2) : 0;
         totalFontWidth += glyph.width * (1 + boldSpacing);
     }
-    if (totalFontWidth <= 0) return { primary: [], secondary: [], letterHeight: 0 };
+    if (totalFontWidth <= 0) return { paths: [], letterHeight: 0, firstWordPrimaryCount: 0 };
 
     const charCount = [...text].filter(c => c !== ' ').length;
     const widthTarget = charCount <= 1 ? 0.55 : charCount <= 2 ? 0.7 : charCount <= 3 ? 0.82 : 0.95;
     const maxWidth = canvasWidth * widthTarget;
 
-    // Compute Y range for THIS word's actual characters (not full font)
+    // Compute Y range from FIRST WORD only — sets letter sizing for all words
+    const firstWord = text.split(' ')[0];
     let wordMinFY = Infinity, wordMaxFY = -Infinity;
-    for (const char of text) {
+    for (const char of firstWord) {
         const glyph = FONT[char];
-        if (!glyph || char === ' ') continue;
+        if (!glyph) continue;
         for (const stroke of glyph.strokes) {
             for (const [, fy] of stroke) {
                 if (fy < wordMinFY) wordMinFY = fy;
@@ -549,17 +566,35 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
     let minY = Infinity, maxY = -Infinity;
     let letterIdx = 0;
     const isThinMode = type === 'Slinky' || type === 'Pipe';
+    let firstWordDone = false;
+    let firstWordPrimaryCount = 0;
 
     for (const char of text) {
         const glyph = FONT[char];
         if (!glyph) continue;
-        if (char === ' ') { xOffset += glyph.width * scale; continue; }
+        if (char === ' ') {
+            // Flush this word's secondary strokes (sorted L→R) before starting next word
+            currentWordSecondary.sort((a, b) => {
+                const minXa = Math.min(...a.map(p => p[0]));
+                const minXb = Math.min(...b.map(p => p[0]));
+                return minXa - minXb;
+            });
+            allPaths.push(...currentWordSecondary);
+            currentWordSecondary = [];
+            xOffset += glyph.width * scale;
+            if (!firstWordDone) {
+                firstWordDone = true;
+                firstWordPrimaryCount = allPaths.length;
+            }
+            continue;
+        }
 
         // Per-letter variation — seed-driven, natural handwriting feel
         const li = letterIdx;
         const yWobble = map(decPairs[li % 10], 0, 255, -14, 14) * scale;
         const baseRot = config.rotation || 0.03;
-        const rotation = map(decPairs[10 + (li % 10)], 0, 255, -baseRot * 3, baseRot * 3);
+        const jitter = map(decPairs[10 + (li % 10)], 0, 255, -0.02, 0.02);
+        const rotation = baseRot + jitter;
         const scaleVar = map(decPairs[20 + (li % 10)], 0, 255, 0.95, 1.05);
         // Per-letter loop shape jitter
         const lwJitter = map(decPairs[(li * 3 + 5) % 32], 0, 255, -0.04, 0.04);
@@ -576,8 +611,11 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
         }
         const glyphCenterY = (glyphMinY + glyphMaxY) / 2;
 
-        for (const stroke of glyph.strokes) {
-            const isSecondary = isThinMode ? false : (isDot(stroke) || isCrossbar(stroke));
+        for (let si = 0; si < glyph.strokes.length; si++) {
+            const stroke = glyph.strokes[si];
+            const fontSec = SECONDARY_STROKES[config.fontStyle];
+            const explicitSec = fontSec && fontSec[char] && fontSec[char].has(si);
+            const isSecondary = isThinMode ? false : (explicitSec || isDot(stroke) || isCrossbar(stroke));
             const strokeLen = stroke.length;
             const transformedPath = stroke.map(([fx, fy], ptIdx) => {
                 const t = strokeLen <= 2 ? 0 : ptIdx / (strokeLen - 1);
@@ -598,12 +636,13 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
                 if (!isSecondary) { minY = Math.min(minY, cy); maxY = Math.max(maxY, cy); }
                 return [cx, cy];
             });
-            if (isSecondary) {
+            const defer = config.deferSecondary !== false;
+            if (isSecondary && defer) {
                 const isUpperCase = char >= 'A' && char <= 'Z';
-                if (isUpperCase) primaryPaths.push(transformedPath);
-                else secondaryPaths.push(transformedPath);
+                if (isUpperCase) allPaths.push(transformedPath);
+                else currentWordSecondary.push(transformedPath);
             } else {
-                primaryPaths.push(transformedPath);
+                allPaths.push(transformedPath);
             }
         }
         const isUpper = char >= 'A' && char <= 'Z';
@@ -612,13 +651,22 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
         letterIdx++;
     }
 
+    // Flush last word's secondary strokes
+    currentWordSecondary.sort((a, b) => {
+        const minXa = Math.min(...a.map(p => p[0]));
+        const minXb = Math.min(...b.map(p => p[0]));
+        return minXa - minXb;
+    });
+    allPaths.push(...currentWordSecondary);
+
+    if (!firstWordDone) firstWordPrimaryCount = allPaths.length;
+
     const letterHeight = (maxY - minY) || canvasHeight * 0.4;
     if (minY !== Infinity) {
         const yShift = canvasHeight / 2 - (minY + maxY) / 2;
-        for (const path of primaryPaths) for (const pt of path) pt[1] += yShift;
-        for (const path of secondaryPaths) for (const pt of path) pt[1] += yShift;
+        for (const path of allPaths) for (const pt of path) pt[1] += yShift;
     }
-    return { primary: primaryPaths, secondary: secondaryPaths, letterHeight };
+    return { paths: allPaths, letterHeight, firstWordPrimaryCount };
 }
 
 function computeDrawOps(text, width, height, type, spread, config) {
@@ -635,8 +683,7 @@ function computeDrawOps(text, width, height, type, spread, config) {
     const isSegmented = type === 'Ribbed';
     const isFuzzy = type === 'Fuzzy';
 
-    const { primary, secondary, letterHeight } = buildWordPaths(text, width, height, type, config);
-    const allPaths = [...primary, ...secondary];
+    const { paths: allPaths, letterHeight, firstWordPrimaryCount } = buildWordPaths(text, width, height, type, config);
     if (allPaths.length === 0) return { particles: particles, adjustedSpread: spread };
 
     const effectiveH = letterHeight / 0.57;
@@ -662,10 +709,18 @@ function computeDrawOps(text, width, height, type, spread, config) {
     const refSteps = isSlinky ? 50 : isFuzzy ? 1000 : isSegmented ? refRibbedSteps : 200;
     const refParticles = (refSegments - 2) * (refSteps + 1);
 
+    // Compute spread from first word only (includes its secondary strokes)
+    const firstWordPaths = allPaths.slice(0, firstWordPrimaryCount);
     let wordParticles = 0;
-    for (const pathPoints of allPaths) {
+    for (const pathPoints of firstWordPaths) {
         if (pathPoints.length < 2) continue;
         wordParticles += (pathPoints.length - 1) * steps + 1;
+    }
+    if (wordParticles === 0) {
+        for (const pathPoints of allPaths) {
+            if (pathPoints.length < 2) continue;
+            wordParticles += (pathPoints.length - 1) * steps + 1;
+        }
     }
 
     // Always match reference squiggle's color range (targetRatio = 1)
@@ -698,6 +753,8 @@ function computeDrawOps(text, width, height, type, spread, config) {
         }
     }
 
+    // Color advances continuously across words — spread is based on first word
+    // so each word covers the same portion of the rainbow
     let color = 0, pathIdx = 0;
     for (const pathPoints of allPaths) {
         if (pathPoints.length < 2) { pathIdx++; continue; }
