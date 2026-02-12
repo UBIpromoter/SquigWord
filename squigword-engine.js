@@ -832,7 +832,11 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
 
     if (!firstWordDone) firstWordPrimaryCount = allPaths.length;
 
-    const letterHeight = (maxY - minY) || canvasHeight * 0.4;
+    // Floor: pen thickness at least what a body-height (x-height) word produces.
+    // Without this, body-only letters like 'c' get a tiny pen.
+    const rawLetterHeight = (maxY - minY) || canvasHeight * 0.4;
+    const xHeightAtScale = getFontXHeight(config.fontStyle) * config.loopHeight * scale;
+    const letterHeight = Math.max(rawLetterHeight, xHeightAtScale);
     if (minY !== Infinity) {
         const yShift = canvasHeight / 2 - (minY + maxY) / 2;
         for (const path of allPaths) for (const pt of path) pt[1] += yShift;
@@ -1182,11 +1186,128 @@ function registerFont(name, glyphs) {
 // EXPORT
 // ============================================
 
+// Render particles from pre-laid-out paths (for noodles with custom layout)
+function renderFromPaths(allPaths, width, height, type, spread, config, letterHeight, firstWordPrimaryCount) {
+    const particles = [];
+    const decPairs = generateHash(config.seed);
+    const startColor = decPairs[29];
+    const colorOffset = config.colorOffset || 0;
+    const effectiveStartColor = ((startColor + colorOffset) % 255 + 255) % 255;
+    const reverse = decPairs[30] < 128;
+
+    const isSlinky = type === 'Slinky' || type === 'Pipe';
+    const isPipe = type === 'Pipe';
+    const isBold = type === 'Bold';
+    const isSegmented = type === 'Ribbed';
+    const isFuzzy = type === 'Fuzzy';
+
+    if (allPaths.length === 0) return { particles, adjustedSpread: spread };
+
+    const referenceHeight = letterHeight / 0.57;
+    const ps = config.penScale || 1.0;
+    const normalDiam = (referenceHeight / 13) * ps;
+    const boldDiam = (referenceHeight / 7) * ps;
+    const pipeDiam = (referenceHeight / 5.5) * ps;
+    const slinkyDiam = (referenceHeight / 12) * ps;
+    const ribbedDiam = (referenceHeight / 12) * ps;
+    const sw = (referenceHeight / 1200) * ps;
+    const slinkySw = Math.max(sw * 2, 1.0);
+
+    const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
+    const ribbedSteps = Math.round(80 * Math.max(1, div / 5));
+    const steps = isPipe ? 8 : isSlinky ? 10 : isFuzzy ? 200 : isBold ? 50 : isSegmented ? ribbedSteps : 80;
+
+    const rngBaseSeed = (Math.abs(config.seed) ^ 0xDEADBEEF) >>> 0;
+    let rng = createRng(rngBaseSeed);
+
+    const refSegments = Math.floor(map(decPairs[26], 0, 255, 12, 20));
+    const refDiv = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
+    const refRibbedSteps = Math.round(200 * Math.max(1, refDiv / 5));
+    const refSteps = isSlinky ? 50 : isFuzzy ? 1000 : isSegmented ? refRibbedSteps : 200;
+    const refParticles = (refSegments - 2) * (refSteps + 1);
+
+    const firstWordPaths = allPaths.slice(0, firstWordPrimaryCount);
+    let wordParticles = 0;
+    for (const pathPoints of firstWordPaths) {
+        if (pathPoints.length < 2) continue;
+        wordParticles += (pathPoints.length - 1) * steps + 1;
+    }
+    if (wordParticles === 0) {
+        for (const pathPoints of allPaths) {
+            if (pathPoints.length < 2) continue;
+            wordParticles += (pathPoints.length - 1) * steps + 1;
+        }
+    }
+
+    const adjustedSpread = Math.max(1, Math.round(spread * (wordParticles / refParticles)));
+    const fillLookup = findPeakFills(allPaths, 16);
+
+    let color = 0, pathIdx = 0;
+    for (const pathPoints of allPaths) {
+        if (pathPoints.length < 2) { pathIdx++; continue; }
+        const extremaSegs = fillLookup.get(pathIdx) || new Set();
+        const padded = [pathPoints[0], ...pathPoints, pathPoints[pathPoints.length - 1]];
+        const totalSegs = padded.length - 3;
+
+        for (let seg = 0; seg < totalSegs; seg++) {
+            const [p0, p1, p2, p3] = [padded[seg], padded[seg+1], padded[seg+2], padded[seg+3]];
+            const lastSeg = seg === totalSegs - 1;
+            for (let i = 0; i <= steps; i++) {
+                if (i === steps && !lastSeg) continue;
+                const t = i / steps;
+                const x = curvePoint(p0[0], p1[0], p2[0], p3[0], t);
+                const y = curvePoint(p0[1], p1[1], p2[1], p3[1], t);
+                const atControlPoint = i === 0 || (lastSeg && i === steps);
+                const controlIdx = (lastSeg && i === steps) ? pathPoints.length - 1 : seg;
+                const shouldFill = atControlPoint && extremaSegs.has(controlIdx);
+                const hue = reverse ? 255 - (((color / adjustedSpread) + effectiveStartColor) % 255) : (((color / adjustedSpread) + effectiveStartColor) % 255);
+                const [r, g, b] = hsbToRgb(hue, 255, 255);
+                const ops = [];
+
+                if (isFuzzy) {
+                    const fuzzR = (referenceHeight / 13) * ps;
+                    const fuzzX = x + map(rng(), 0, 1, 0, fuzzR);
+                    const fuzzY = y + map(rng(), 0, 1, 0, fuzzR);
+                    const dist = Math.sqrt((x - fuzzX) ** 2 + (y - fuzzY) ** 2);
+                    if (dist < fuzzR * 1.1) {
+                        const fps = map(rng(), 0, 1, (referenceHeight / 100) * ps, (referenceHeight / 20) * ps);
+                        ops.push({ x: fuzzX, y: fuzzY, radius: fps / 2, fill: `rgba(${r},${g},${b},${20/255})` });
+                    }
+                } else if (isSlinky) {
+                    if (isPipe) {
+                        ops.push({ x, y, radius: pipeDiam / 2, fill: shouldFill ? 'black' : null, stroke: 'black', lineWidth: sw + (slinkySw - sw) * 0.3 });
+                        ops.push({ x, y, radius: slinkyDiam / 2, fill: shouldFill ? `rgb(${r},${g},${b})` : null, stroke: `rgb(${r},${g},${b})`, lineWidth: slinkySw });
+                    } else {
+                        ops.push({ x, y, radius: slinkyDiam / 2, fill: shouldFill ? `rgb(${r},${g},${b})` : null, stroke: `rgb(${r},${g},${b})`, lineWidth: slinkySw });
+                    }
+                } else if (isSegmented) {
+                    ops.push({ x, y, radius: normalDiam / 2, fill: `rgb(${r},${g},${b})` });
+                    if (i % div === 0 || i === 0 || i === steps - 1) {
+                        ops.push({ x, y, radius: ribbedDiam / 2, fill: `rgb(${decPairs[25]},${decPairs[25]},${decPairs[25]})` });
+                    }
+                } else {
+                    const diam = isBold ? boldDiam : normalDiam;
+                    ops.push({ x, y, radius: diam / 2, fill: `rgb(${r},${g},${b})` });
+                }
+                if (ops.length > 0) particles.push(ops);
+                color++;
+            }
+        }
+        rng = createRng(rngBaseSeed);
+        pathIdx++;
+    }
+    fitToCanvas(particles, width, height, type, config.seed);
+    return { particles, adjustedSpread };
+}
+
 window.SquigWord = {
     BACKGROUNDS, TYPES, FONT_NAMES,
     resolveTraits, deriveShape,
-    renderToParticles, drawParticles, renderSnowfro,
-    hsbToRgb, registerFont
+    renderToParticles, renderFromPaths, drawParticles, renderSnowfro,
+    hsbToRgb, registerFont,
+    // Internals exposed for noodles with custom layout
+    getFontGlyphs, getFontYRange, getFontXHeight,
+    measureSnowfroHeight, generateHash
 };
 
 })();
