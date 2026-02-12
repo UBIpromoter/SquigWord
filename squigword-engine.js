@@ -5,7 +5,11 @@
 // CONSTANTS
 // ============================================
 
-const BACKGROUNDS = ['#ffffff','#f5f5f5','#e0e0e0','#c0c0c0','#808080','#404040','#202020','#000000'];
+const BACKGROUNDS = [
+    '#ffffff','#e1e1e1','#c8c8c8','#afafaf','#969696','#7d7d7d','#646464','#4b4b4b','#323232','#191919',
+    '#000000',
+    '#191919','#323232','#4b4b4b','#646464','#7d7d7d','#969696','#afafaf','#c8c8c8','#e1e1e1'
+];
 const TYPES = ['Auto', 'Normal', 'Bold', 'Slinky', 'Pipe', 'Fuzzy', 'Ribbed'];
 const FONT_NAMES = ['Allure', 'Script'];
 
@@ -301,8 +305,9 @@ const SCRIPT_MERGE = {
 };
 for (const [ch, [idxA, idxB]] of Object.entries(SCRIPT_MERGE)) {
     if (!FONT_SCRIPT[ch]) continue;
-    const origA = decodeHersheyFont(HERSHEY_SCRIPT[ch]).strokes[idxA];
-    const origB = decodeHersheyFont(HERSHEY_SCRIPT[ch]).strokes[idxB];
+    const decoded = decodeHersheyFont(HERSHEY_SCRIPT[ch]);
+    const origA = decoded.strokes[idxA];
+    const origB = decoded.strokes[idxB];
     if (!origA || !origB) continue;
     // Compute threshold from letter bounding box (8% of bbox diagonal)
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -313,23 +318,17 @@ for (const [ch, [idxA, idxB]] of Object.entries(SCRIPT_MERGE)) {
     const diag = Math.sqrt((maxX - minX) ** 2 + (maxY - minY) ** 2);
     const merged = mergeOverlappingStrokes(origA, origB, diag * 0.08);
     // Replace the kept strokes: remove originals, insert merged
-    const currentStrokes = FONT_SCRIPT[ch].strokes;
     // For L: both strokes were kept (all strokes). Replace with single merged.
     // For U: strokes [0,1,2] kept. Replace 0+1 with merged, keep 2.
     // For V: only stroke [1] was kept. Replace with merged (covers 0+1).
     if (ch === 'L') {
         FONT_SCRIPT[ch].strokes = [merged];
     } else if (ch === 'U') {
-        // Kept strokes were [0,1,2] from original. Merge 0+1, keep 2.
-        const origStrokes = decodeHersheyFont(HERSHEY_SCRIPT[ch]).strokes;
-        FONT_SCRIPT[ch].strokes = [merged, origStrokes[2]];
+        FONT_SCRIPT[ch].strokes = [merged, decoded.strokes[2]];
     } else if (ch === 'V') {
-        // Only stroke [1] was kept, but merged is better. Use merged alone.
         FONT_SCRIPT[ch].strokes = [merged];
     } else if (ch === 'Y') {
-        // Kept strokes were [0,1,3] from original. Merge 0+1, keep 3.
-        const origStrokes = decodeHersheyFont(HERSHEY_SCRIPT[ch]).strokes;
-        FONT_SCRIPT[ch].strokes = [merged, origStrokes[3]];
+        FONT_SCRIPT[ch].strokes = [merged, decoded.strokes[3]];
     }
 }
 
@@ -557,7 +556,7 @@ function getFontXHeight(fontStyle) {
 // DERIVE WORD SHAPE FROM SQUIGGLE
 // ============================================
 
-function deriveShapeFromSquiggle(seed, fontStyle) {
+function deriveShape(seed, fontStyle) {
     const decPairs = generateHash(seed);
     const segments = Math.floor(map(decPairs[26], 0, 255, 12, 20));
     const isScript = fontStyle === 'Script';
@@ -599,7 +598,32 @@ function deriveShapeFromSquiggle(seed, fontStyle) {
 // RENDERING PIPELINE
 // ============================================
 
-function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
+function transformStroke(stroke, params) {
+    const { glyphCenterX, glyphCenterY, loopWidth, loopHeight,
+            xOffset, scale, baselineY, slant, letterCenterX, letterCenterY,
+            scaleVar, cosR, sinR, yWobble } = params;
+    const strokeLen = stroke.length;
+    return stroke.map(([fx, fy], ptIdx) => {
+        const t = strokeLen <= 2 ? 0 : ptIdx / (strokeLen - 1);
+        const blend = Math.sin(t * Math.PI);
+        const lw = 1 + (loopWidth - 1) * blend;
+        const lh = 1 + (loopHeight - 1) * blend;
+        const sx = glyphCenterX + (fx - glyphCenterX) * lw;
+        const sy = glyphCenterY + (fy - glyphCenterY) * lh;
+        let cx = xOffset + sx * scale;
+        let cy = baselineY - sy * scale;
+        cx += (baselineY - cy) * slant;
+        let dx = (cx - letterCenterX) * scaleVar;
+        let dy = (cy - letterCenterY) * scaleVar;
+        const rx = dx * cosR - dy * sinR;
+        const ry = dx * sinR + dy * cosR;
+        cx = letterCenterX + rx;
+        cy = letterCenterY + ry + yWobble;
+        return [cx, cy];
+    });
+}
+
+function layoutText(text, canvasWidth, canvasHeight, type, config) {
     const words = text.trim().split(/\s+/);
     const totalChars = words.join('').length;
     if (words.length >= 2 && totalChars > 10) {
@@ -616,16 +640,16 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
         const line2 = words.slice(bestSplit).join(' ');
 
         // Build both lines at full canvas height to compute natural scales
-        const r1 = buildLinePaths(line1, canvasWidth, canvasHeight, type, config);
-        const r2 = buildLinePaths(line2, canvasWidth, canvasHeight, type, config);
+        const r1 = layoutLine(line1, canvasWidth, canvasHeight, type, config);
+        const r2 = layoutLine(line2, canvasWidth, canvasHeight, type, config);
 
         // Use the smaller scale so both lines match
         const s1 = r1.scale, s2 = r2.scale;
         const uniformScale = Math.min(s1, s2);
 
         // Rebuild whichever line needs rescaling (or both for consistency)
-        const r1f = (s1 === uniformScale) ? r1 : buildLinePaths(line1, canvasWidth, canvasHeight, type, config, uniformScale);
-        const r2f = (s2 === uniformScale) ? r2 : buildLinePaths(line2, canvasWidth, canvasHeight, type, config, uniformScale);
+        const r1f = (s1 === uniformScale) ? r1 : layoutLine(line1, canvasWidth, canvasHeight, type, config, uniformScale);
+        const r2f = (s2 === uniformScale) ? r2 : layoutLine(line2, canvasWidth, canvasHeight, type, config, uniformScale);
 
         // Measure actual Y bounds of each line's paths
         let min1Y = Infinity, max1Y = -Infinity;
@@ -650,10 +674,10 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
         const letterHeight = Math.max(r1f.letterHeight, r2f.letterHeight);
         return { paths: allPaths, letterHeight, firstWordPrimaryCount: r1f.firstWordPrimaryCount };
     }
-    return buildLinePaths(text, canvasWidth, canvasHeight, type, config);
+    return layoutLine(text, canvasWidth, canvasHeight, type, config);
 }
 
-function buildLinePaths(text, canvasWidth, canvasHeight, type, config, forceScale) {
+function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
     const FONT = getFontGlyphs(config.fontStyle);
     const FONT_Y_RANGE = getFontYRange(config.fontStyle);
     const allPaths = [];
@@ -699,7 +723,7 @@ function buildLinePaths(text, canvasWidth, canvasHeight, type, config, forceScal
     const xHeightTarget = actualSquigH * 0.65;
     const maxHeightScale = xHeightTarget / effectiveXHeight;
 
-    // Soft safety — post-fit in computeDrawOps handles actual overflow
+    // Soft safety — post-fit in renderToParticles handles actual overflow
     const fullEffectiveRange = wordYRange * config.loopHeight;
     const maxSafeScale = (canvasHeight * 0.90) / fullEffectiveRange;
 
@@ -763,26 +787,16 @@ function buildLinePaths(text, canvasWidth, canvasHeight, type, config, forceScal
             const fontSec = SECONDARY_STROKES[config.fontStyle];
             const explicitSec = fontSec && fontSec[char] && fontSec[char].has(si);
             const isSecondary = isThinMode ? false : (explicitSec || isDot(stroke) || isCrossbar(stroke));
-            const strokeLen = stroke.length;
-            const transformedPath = stroke.map(([fx, fy], ptIdx) => {
-                const t = strokeLen <= 2 ? 0 : ptIdx / (strokeLen - 1);
-                const blend = Math.sin(t * Math.PI);
-                const lw = 1 + (config.loopWidth + lwJitter - 1) * blend;
-                const lh = 1 + (config.loopHeight + lhJitter - 1) * blend;
-                const sx = glyphCenterX + (fx - glyphCenterX) * lw;
-                const sy = glyphCenterY + (fy - glyphCenterY) * lh;
-                let cx = xOffset + sx * scale;
-                let cy = baselineY - sy * scale;
-                cx += (baselineY - cy) * config.slant;
-                let dx = (cx - letterCenterX) * scaleVar;
-                let dy = (cy - letterCenterY) * scaleVar;
-                const rx = dx * cosR - dy * sinR;
-                const ry = dx * sinR + dy * cosR;
-                cx = letterCenterX + rx;
-                cy = letterCenterY + ry + yWobble;
-                if (!isSecondary) { minY = Math.min(minY, cy); maxY = Math.max(maxY, cy); }
-                return [cx, cy];
+            const transformedPath = transformStroke(stroke, {
+                glyphCenterX, glyphCenterY,
+                loopWidth: config.loopWidth + lwJitter,
+                loopHeight: config.loopHeight + lhJitter,
+                xOffset, scale, baselineY, slant: config.slant,
+                letterCenterX, letterCenterY, scaleVar, cosR, sinR, yWobble
             });
+            if (!isSecondary) {
+                for (const [, cy] of transformedPath) { minY = Math.min(minY, cy); maxY = Math.max(maxY, cy); }
+            }
             const defer = config.deferSecondary !== false;
             if (isSecondary && defer) {
                 const isUpperCase = char >= 'A' && char <= 'Z';
@@ -816,7 +830,93 @@ function buildLinePaths(text, canvasWidth, canvasHeight, type, config, forceScal
     return { paths: allPaths, letterHeight, firstWordPrimaryCount, scale };
 }
 
-function computeDrawOps(text, width, height, type, spread, config) {
+function findPeakFills(allPaths, budget) {
+    const fillLookup = new Map();
+    let gMinY = Infinity, gMaxY = -Infinity;
+    for (const pts of allPaths) for (const pt of pts) { gMinY = Math.min(gMinY, pt[1]); gMaxY = Math.max(gMaxY, pt[1]); }
+    const gCenterY = (gMinY + gMaxY) / 2;
+    const candidates = [];
+    for (let p = 0; p < allPaths.length; p++) {
+        const pts = allPaths[p]; if (pts.length < 2) continue;
+        const extrema = findYExtrema(pts);
+        for (const idx of extrema) candidates.push({ pathIdx: p, controlIdx: idx, dist: Math.abs(pts[idx][1] - gCenterY) });
+    }
+    const tops = candidates.filter(c => allPaths[c.pathIdx][c.controlIdx][1] < gCenterY);
+    const bottoms = candidates.filter(c => allPaths[c.pathIdx][c.controlIdx][1] >= gCenterY);
+    tops.sort((a, b) => b.dist - a.dist); bottoms.sort((a, b) => b.dist - a.dist);
+    const kept = []; let ti = 0, bi = 0;
+    while (kept.length < budget && (ti < tops.length || bi < bottoms.length)) {
+        if (ti < tops.length) kept.push(tops[ti++]);
+        if (kept.length < budget && bi < bottoms.length) kept.push(bottoms[bi++]);
+    }
+    for (const c of kept) {
+        if (!fillLookup.has(c.pathIdx)) fillLookup.set(c.pathIdx, new Set());
+        fillLookup.get(c.pathIdx).add(c.controlIdx);
+    }
+    return fillLookup;
+}
+
+function fitToCanvas(particles, width, height, type, seed) {
+    if (particles.length === 0) return;
+    let bMinX = Infinity, bMaxX = -Infinity, bMinY = Infinity, bMaxY = -Infinity;
+    for (const ops of particles) {
+        for (const op of ops) {
+            const r = op.radius || 0;
+            if (op.x - r < bMinX) bMinX = op.x - r;
+            if (op.x + r > bMaxX) bMaxX = op.x + r;
+            if (op.y - r < bMinY) bMinY = op.y - r;
+            if (op.y + r > bMaxY) bMaxY = op.y + r;
+        }
+    }
+    const renderedW = bMaxX - bMinX;
+    const renderedH = bMaxY - bMinY;
+    if (renderedW <= 0 || renderedH <= 0) return;
+
+    const isBold = type === 'Bold';
+    const margin = isBold ? 4 : Math.min(width, height) * 0.02;
+    const availW = width - margin * 2;
+    const availH = height - margin * 2;
+    const canFitW = availW / renderedW;
+    const canFitH = availH / renderedH;
+
+    let fitScale;
+    if (isBold) {
+        const theoreticalMax = getSnowfroHeight(height, 'Bold');
+        const actualH = measureSnowfroHeight(height, 'Bold', seed);
+        const ratio = actualH / theoreticalMax;
+        const normalized = Math.max(0, Math.min(1, (ratio - 0.70) / 0.80));
+        const fillTarget = 0.88 + 0.10 * normalized;
+        fitScale = Math.min(canFitW, canFitH) * fillTarget;
+    } else {
+        fitScale = Math.min(1, canFitW, canFitH);
+    }
+
+    if (Math.abs(fitScale - 1) > 0.001) {
+        const cx = (bMinX + bMaxX) / 2;
+        const cy = (bMinY + bMaxY) / 2;
+        const targetCx = width / 2;
+        const targetCy = height / 2;
+        for (const ops of particles) {
+            for (const op of ops) {
+                op.x = targetCx + (op.x - cx) * fitScale;
+                op.y = targetCy + (op.y - cy) * fitScale;
+                op.radius *= fitScale;
+                if (op.lineWidth) op.lineWidth *= fitScale;
+            }
+        }
+    } else {
+        const cy = (bMinY + bMaxY) / 2;
+        const targetCy = height / 2;
+        const yShift = targetCy - cy;
+        if (Math.abs(yShift) > 1) {
+            for (const ops of particles) {
+                for (const op of ops) { op.y += yShift; }
+            }
+        }
+    }
+}
+
+function renderToParticles(text, width, height, type, spread, config) {
     const particles = [];
     const decPairs = generateHash(config.seed);
     const startColor = decPairs[29];
@@ -830,16 +930,16 @@ function computeDrawOps(text, width, height, type, spread, config) {
     const isSegmented = type === 'Ribbed';
     const isFuzzy = type === 'Fuzzy';
 
-    const { paths: allPaths, letterHeight, firstWordPrimaryCount } = buildWordPaths(text, width, height, type, config);
+    const { paths: allPaths, letterHeight, firstWordPrimaryCount } = layoutText(text, width, height, type, config);
     if (allPaths.length === 0) return { particles: particles, adjustedSpread: spread };
 
-    const effectiveH = letterHeight / 0.57;
-    const normalDiam = effectiveH / 13;
-    const boldDiam = effectiveH / 7;
-    const pipeDiam = effectiveH / 5.5;
-    const slinkyDiam = effectiveH / 12;
-    const ribbedDiam = effectiveH / 12;
-    const sw = effectiveH / 1200;
+    const referenceHeight = letterHeight / 0.57;
+    const normalDiam = referenceHeight / 13;
+    const boldDiam = referenceHeight / 7;
+    const pipeDiam = referenceHeight / 5.5;
+    const slinkyDiam = referenceHeight / 12;
+    const ribbedDiam = referenceHeight / 12;
+    const sw = referenceHeight / 1200;
     const slinkySw = Math.max(sw * 2, 1.0);
 
     const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
@@ -873,32 +973,7 @@ function computeDrawOps(text, width, height, type, spread, config) {
     // Always match reference squiggle's color range (targetRatio = 1)
     const adjustedSpread = Math.max(1, Math.round(spread * (wordParticles / refParticles)));
 
-    // Peaks fill
-    const FILL_BUDGET = 16;
-    let fillLookup = new Map();
-    {
-        let gMinY = Infinity, gMaxY = -Infinity;
-        for (const pts of allPaths) for (const pt of pts) { gMinY = Math.min(gMinY, pt[1]); gMaxY = Math.max(gMaxY, pt[1]); }
-        const gCenterY = (gMinY + gMaxY) / 2;
-        const candidates = [];
-        for (let p = 0; p < allPaths.length; p++) {
-            const pts = allPaths[p]; if (pts.length < 2) continue;
-            const extrema = findYExtrema(pts);
-            for (const idx of extrema) candidates.push({ pathIdx: p, controlIdx: idx, dist: Math.abs(pts[idx][1] - gCenterY) });
-        }
-        const tops = candidates.filter(c => allPaths[c.pathIdx][c.controlIdx][1] < gCenterY);
-        const bottoms = candidates.filter(c => allPaths[c.pathIdx][c.controlIdx][1] >= gCenterY);
-        tops.sort((a, b) => b.dist - a.dist); bottoms.sort((a, b) => b.dist - a.dist);
-        const kept = []; let ti = 0, bi = 0;
-        while (kept.length < FILL_BUDGET && (ti < tops.length || bi < bottoms.length)) {
-            if (ti < tops.length) kept.push(tops[ti++]);
-            if (kept.length < FILL_BUDGET && bi < bottoms.length) kept.push(bottoms[bi++]);
-        }
-        for (const c of kept) {
-            if (!fillLookup.has(c.pathIdx)) fillLookup.set(c.pathIdx, new Set());
-            fillLookup.get(c.pathIdx).add(c.controlIdx);
-        }
-    }
+    const fillLookup = findPeakFills(allPaths, 16);
 
     // Color advances continuously across words — spread is based on first word
     // so each word covers the same portion of the rainbow
@@ -925,12 +1000,12 @@ function computeDrawOps(text, width, height, type, spread, config) {
                 const ops = [];
 
                 if (isFuzzy) {
-                    const fuzzR = effectiveH / 13;
+                    const fuzzR = referenceHeight / 13;
                     const fuzzX = x + map(rng(), 0, 1, 0, fuzzR);
                     const fuzzY = y + map(rng(), 0, 1, 0, fuzzR);
                     const dist = Math.sqrt((x - fuzzX) ** 2 + (y - fuzzY) ** 2);
                     if (dist < fuzzR * 1.1) {
-                        const ps = map(rng(), 0, 1, effectiveH / 100, effectiveH / 20);
+                        const ps = map(rng(), 0, 1, referenceHeight / 100, referenceHeight / 20);
                         ops.push({ x: fuzzX, y: fuzzY, radius: ps / 2, fill: `rgba(${r},${g},${b},${20/255})` });
                     }
                 } else if (isSlinky) {
@@ -956,70 +1031,7 @@ function computeDrawOps(text, width, height, type, spread, config) {
         rng = createRng(rngBaseSeed);
         pathIdx++;
     }
-    // Measure actual rendered bounds (outer edge of every circle)
-    if (particles.length > 0) {
-        let bMinX = Infinity, bMaxX = -Infinity, bMinY = Infinity, bMaxY = -Infinity;
-        for (const ops of particles) {
-            for (const op of ops) {
-                const r = op.radius || 0;
-                if (op.x - r < bMinX) bMinX = op.x - r;
-                if (op.x + r > bMaxX) bMaxX = op.x + r;
-                if (op.y - r < bMinY) bMinY = op.y - r;
-                if (op.y + r > bMaxY) bMaxY = op.y + r;
-            }
-        }
-        const renderedW = bMaxX - bMinX;
-        const renderedH = bMaxY - bMinY;
-
-        if (renderedW > 0 && renderedH > 0) {
-            const margin = isBold ? 4 : Math.min(width, height) * 0.02;
-            const availW = width - margin * 2;
-            const availH = height - margin * 2;
-            const canFitW = availW / renderedW;
-            const canFitH = availH / renderedH;
-
-            let fitScale;
-            if (isBold) {
-                // Bold: fill canvas, modulated by squiggle height
-                // Tall squiggles → fill ~98%, short squiggles → fill ~88%
-                // Actual heights range from ~0.7× to ~1.5× theoretical max
-                const theoreticalMax = getSnowfroHeight(height, 'Bold');
-                const actualH = measureSnowfroHeight(height, 'Bold', config.seed);
-                const ratio = actualH / theoreticalMax;
-                const normalized = Math.max(0, Math.min(1, (ratio - 0.70) / 0.80));
-                const fillTarget = 0.88 + 0.10 * normalized;
-                fitScale = Math.min(canFitW, canFitH) * fillTarget;
-            } else {
-                // All other types: only scale down if overflowing
-                fitScale = Math.min(1, canFitW, canFitH);
-            }
-
-            if (Math.abs(fitScale - 1) > 0.001) {
-                const cx = (bMinX + bMaxX) / 2;
-                const cy = (bMinY + bMaxY) / 2;
-                const targetCx = width / 2;
-                const targetCy = height / 2;
-                for (const ops of particles) {
-                    for (const op of ops) {
-                        op.x = targetCx + (op.x - cx) * fitScale;
-                        op.y = targetCy + (op.y - cy) * fitScale;
-                        op.radius *= fitScale;
-                        if (op.lineWidth) op.lineWidth *= fitScale;
-                    }
-                }
-            } else {
-                // No scaling needed, but recenter vertically
-                const cy = (bMinY + bMaxY) / 2;
-                const targetCy = height / 2;
-                const yShift = targetCy - cy;
-                if (Math.abs(yShift) > 1) {
-                    for (const ops of particles) {
-                        for (const op of ops) { op.y += yShift; }
-                    }
-                }
-            }
-        }
-    }
+    fitToCanvas(particles, width, height, type, config.seed);
 
     return { particles, adjustedSpread };
 }
@@ -1046,6 +1058,8 @@ function drawParticles(context, particles) {
 // SNOWFRO REFERENCE RENDERER
 // ============================================
 
+// Faithful port of Snowfro's original wave renderer.
+// Deliberately self-contained — do not share code with renderToParticles.
 function renderSnowfro(ctx, width, height, config) {
     const decPairs = generateHash(config.seed);
     let traits = extractTraits(decPairs);
@@ -1149,13 +1163,10 @@ function renderSnowfro(ctx, width, height, config) {
 // ============================================
 
 window.SquigWord = {
-    BACKGROUNDS, TYPES, FONT_NAMES, FONTS,
-    map, generateHash, extractTraits, createRng, hsbToRgb, curvePoint,
-    parseSvgPath, decodeHersheyFont, computeFontYRange,
-    isDot, isCrossbar, findYExtrema,
-    getSnowfroHeight, measureSnowfroHeight, getFontGlyphs, getFontYRange, getFontXHeight, deriveShapeFromSquiggle,
-    buildWordPaths, computeDrawOps, drawParticles, renderSnowfro,
-    resolveTraits
+    BACKGROUNDS, TYPES, FONT_NAMES,
+    resolveTraits, deriveShape,
+    renderToParticles, drawParticles, renderSnowfro,
+    hsbToRgb
 };
 
 })();
