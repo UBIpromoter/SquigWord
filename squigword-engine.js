@@ -600,6 +600,60 @@ function deriveShapeFromSquiggle(seed, fontStyle) {
 // ============================================
 
 function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
+    const words = text.trim().split(/\s+/);
+    const totalChars = words.join('').length;
+    if (words.length >= 2 && totalChars > 10) {
+        // Split at word boundary nearest the middle
+        let bestSplit = 1, bestDiff = Infinity;
+        const totalLen = text.trim().length;
+        let runLen = 0;
+        for (let i = 0; i < words.length - 1; i++) {
+            runLen += words[i].length + 1;
+            const diff = Math.abs(runLen - totalLen / 2);
+            if (diff < bestDiff) { bestDiff = diff; bestSplit = i + 1; }
+        }
+        const line1 = words.slice(0, bestSplit).join(' ');
+        const line2 = words.slice(bestSplit).join(' ');
+
+        // Build both lines at full canvas height to compute natural scales
+        const r1 = buildLinePaths(line1, canvasWidth, canvasHeight, type, config);
+        const r2 = buildLinePaths(line2, canvasWidth, canvasHeight, type, config);
+
+        // Use the smaller scale so both lines match
+        const s1 = r1.scale, s2 = r2.scale;
+        const uniformScale = Math.min(s1, s2);
+
+        // Rebuild whichever line needs rescaling (or both for consistency)
+        const r1f = (s1 === uniformScale) ? r1 : buildLinePaths(line1, canvasWidth, canvasHeight, type, config, uniformScale);
+        const r2f = (s2 === uniformScale) ? r2 : buildLinePaths(line2, canvasWidth, canvasHeight, type, config, uniformScale);
+
+        // Measure actual Y bounds of each line's paths
+        let min1Y = Infinity, max1Y = -Infinity;
+        for (const p of r1f.paths) for (const pt of p) { min1Y = Math.min(min1Y, pt[1]); max1Y = Math.max(max1Y, pt[1]); }
+        let min2Y = Infinity, max2Y = -Infinity;
+        for (const p of r2f.paths) for (const pt of p) { min2Y = Math.min(min2Y, pt[1]); max2Y = Math.max(max2Y, pt[1]); }
+
+        const h1 = max1Y - min1Y, h2 = max2Y - min2Y;
+        const lineGap = Math.max(h1, h2) * 0.15;
+        const totalH = h1 + lineGap + h2;
+        const topY = (canvasHeight - totalH) / 2;
+
+        // Shift line 1 so its top sits at topY
+        const shift1 = topY - min1Y;
+        for (const p of r1f.paths) for (const pt of p) pt[1] += shift1;
+
+        // Shift line 2 so it sits below line 1 with the gap
+        const shift2 = (topY + h1 + lineGap) - min2Y;
+        for (const p of r2f.paths) for (const pt of p) pt[1] += shift2;
+
+        const allPaths = [...r1f.paths, ...r2f.paths];
+        const letterHeight = Math.max(r1f.letterHeight, r2f.letterHeight);
+        return { paths: allPaths, letterHeight, firstWordPrimaryCount: r1f.firstWordPrimaryCount };
+    }
+    return buildLinePaths(text, canvasWidth, canvasHeight, type, config);
+}
+
+function buildLinePaths(text, canvasWidth, canvasHeight, type, config, forceScale) {
     const FONT = getFontGlyphs(config.fontStyle);
     const FONT_Y_RANGE = getFontYRange(config.fontStyle);
     const allPaths = [];
@@ -617,7 +671,7 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
     if (totalFontWidth <= 0) return { paths: [], letterHeight: 0, firstWordPrimaryCount: 0 };
 
     const charCount = [...text].filter(c => c !== ' ').length;
-    const widthTarget = charCount <= 1 ? 0.55 : charCount <= 2 ? 0.7 : charCount <= 3 ? 0.82 : 0.95;
+    const widthTarget = charCount <= 1 ? 0.50 : charCount <= 2 ? 0.65 : charCount <= 3 ? 0.75 : 0.88;
     const maxWidth = canvasWidth * widthTarget;
 
     // Size based on x-height (body characters) so letter bodies match squiggle height.
@@ -640,22 +694,16 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
     }
     const wordYRange = (wordMaxFY - wordMinFY) || FONT_Y_RANGE;
 
-    // Target: x-height = 75% of actual squiggle height for this seed
+    // Target: x-height proportional to actual squiggle height for this seed
     const actualSquigH = measureSnowfroHeight(canvasHeight, type, config.seed);
-    const circleOvershoot = { Normal: 1.14, Bold: 1.25, Slinky: 1.15, Pipe: 1.32, Fuzzy: 1.14, Ribbed: 1.14 }[type] || 1.2;
-    const xHeightTarget = (actualSquigH / circleOvershoot) * 0.75;
+    const xHeightTarget = actualSquigH * 0.65;
     const maxHeightScale = xHeightTarget / effectiveXHeight;
 
-    // Hard safety: full word (with ascenders/descenders + circles) must fit in canvas
+    // Soft safety — post-fit in computeDrawOps handles actual overflow
     const fullEffectiveRange = wordYRange * config.loopHeight;
-    const maxSafeScale = (canvasHeight * 0.88) / (fullEffectiveRange * circleOvershoot);
+    const maxSafeScale = (canvasHeight * 0.90) / fullEffectiveRange;
 
-    // Account for circle radius extending beyond text on each side
-    let widthPadding = 0;
-    if (type === 'Pipe') widthPadding = 2 * xHeightRange / (0.57 * 5.5);
-    else if (type === 'Bold') widthPadding = 2 * wordYRange / (0.57 * 7);
-
-    const scale = Math.min(maxWidth / (totalFontWidth + widthPadding), maxHeightScale, maxSafeScale);
+    const scale = forceScale || Math.min(maxWidth / totalFontWidth, maxHeightScale, maxSafeScale);
 
     const baselineY = canvasHeight * 0.55;
     let xOffset = (canvasWidth - totalFontWidth * scale) / 2;
@@ -765,7 +813,7 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
         const yShift = canvasHeight / 2 - (minY + maxY) / 2;
         for (const path of allPaths) for (const pt of path) pt[1] += yShift;
     }
-    return { paths: allPaths, letterHeight, firstWordPrimaryCount };
+    return { paths: allPaths, letterHeight, firstWordPrimaryCount, scale };
 }
 
 function computeDrawOps(text, width, height, type, spread, config) {
@@ -908,6 +956,71 @@ function computeDrawOps(text, width, height, type, spread, config) {
         rng = createRng(rngBaseSeed);
         pathIdx++;
     }
+    // Measure actual rendered bounds (outer edge of every circle)
+    if (particles.length > 0) {
+        let bMinX = Infinity, bMaxX = -Infinity, bMinY = Infinity, bMaxY = -Infinity;
+        for (const ops of particles) {
+            for (const op of ops) {
+                const r = op.radius || 0;
+                if (op.x - r < bMinX) bMinX = op.x - r;
+                if (op.x + r > bMaxX) bMaxX = op.x + r;
+                if (op.y - r < bMinY) bMinY = op.y - r;
+                if (op.y + r > bMaxY) bMaxY = op.y + r;
+            }
+        }
+        const renderedW = bMaxX - bMinX;
+        const renderedH = bMaxY - bMinY;
+
+        if (renderedW > 0 && renderedH > 0) {
+            const margin = isBold ? 4 : Math.min(width, height) * 0.02;
+            const availW = width - margin * 2;
+            const availH = height - margin * 2;
+            const canFitW = availW / renderedW;
+            const canFitH = availH / renderedH;
+
+            let fitScale;
+            if (isBold) {
+                // Bold: fill canvas, modulated by squiggle height
+                // Tall squiggles → fill ~98%, short squiggles → fill ~88%
+                // Actual heights range from ~0.7× to ~1.5× theoretical max
+                const theoreticalMax = getSnowfroHeight(height, 'Bold');
+                const actualH = measureSnowfroHeight(height, 'Bold', config.seed);
+                const ratio = actualH / theoreticalMax;
+                const normalized = Math.max(0, Math.min(1, (ratio - 0.70) / 0.80));
+                const fillTarget = 0.88 + 0.10 * normalized;
+                fitScale = Math.min(canFitW, canFitH) * fillTarget;
+            } else {
+                // All other types: only scale down if overflowing
+                fitScale = Math.min(1, canFitW, canFitH);
+            }
+
+            if (Math.abs(fitScale - 1) > 0.001) {
+                const cx = (bMinX + bMaxX) / 2;
+                const cy = (bMinY + bMaxY) / 2;
+                const targetCx = width / 2;
+                const targetCy = height / 2;
+                for (const ops of particles) {
+                    for (const op of ops) {
+                        op.x = targetCx + (op.x - cx) * fitScale;
+                        op.y = targetCy + (op.y - cy) * fitScale;
+                        op.radius *= fitScale;
+                        if (op.lineWidth) op.lineWidth *= fitScale;
+                    }
+                }
+            } else {
+                // No scaling needed, but recenter vertically
+                const cy = (bMinY + bMaxY) / 2;
+                const targetCy = height / 2;
+                const yShift = targetCy - cy;
+                if (Math.abs(yShift) > 1) {
+                    for (const ops of particles) {
+                        for (const op of ops) { op.y += yShift; }
+                    }
+                }
+            }
+        }
+    }
+
     return { particles, adjustedSpread };
 }
 
