@@ -223,7 +223,7 @@
 <body>
     <div class="app">
         <div class="canvas-row">
-            <div class="canvas-wrap"><canvas id="canvas" width="1000" height="500"></canvas></div>
+            <div class="canvas-wrap"><canvas id="canvas" width="1300" height="500"></canvas></div>
             <div class="ref-wrap"><canvas id="refCanvas" width="800" height="500"></canvas></div>
         </div>
         <div class="panel">
@@ -290,20 +290,15 @@
     };
 
     function buildConfig() {
-        // Derive shape variation from seed (hidden from user)
-        const hash = SquigWord.generateHash(state.seed);
-        const isScript = state.fontStyle === 'Script';
-        const rotation = SquigWord.map(hash[0], 0, 255, -0.0873, 0.1745);
-        const slant = SquigWord.map(hash[1], 0, 255, -0.1745, 0.1745);
-        const loopWidth = isScript ? 1.0 : SquigWord.map(hash[2], 0, 255, 0.8, 1.15);
-        const loopHeight = isScript ? SquigWord.map(hash[3], 0, 255, 1.0, 1.15) : SquigWord.map(hash[3], 0, 255, 0.85, 1.15);
+        // Derive shape from the squiggle's actual wave properties
+        const shape = SquigWord.deriveShapeFromSquiggle(state.seed, state.fontStyle);
         return {
             seed: state.seed,
             fontStyle: state.fontStyle,
-            rotation: rotation,
-            slant: slant,
-            loopWidth: loopWidth,
-            loopHeight: loopHeight,
+            rotation: shape.rotation,
+            slant: shape.slant,
+            loopWidth: shape.loopWidth,
+            loopHeight: shape.loopHeight,
             colorOffset: state.colorOffset
         };
     }
