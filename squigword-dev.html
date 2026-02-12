@@ -87,7 +87,7 @@
 <body>
     <div class="app">
         <div class="canvas-row">
-            <div class="canvas-wrap"><canvas id="canvas" width="1000" height="400"></canvas></div>
+            <div class="canvas-wrap"><canvas id="canvas" width="1300" height="400"></canvas></div>
             <div class="ref-wrap">
                 <canvas id="refCanvas" width="600" height="300"></canvas>
             </div>
@@ -157,7 +157,8 @@
                     <input type="range" class="speed-slider" id="speedSlider" min="1" max="50" value="10">
                     <span class="slider-val" id="speedVal" style="min-width:24px;">10</span>
                 </div>
-                <button class="btn" id="deferBtn" title="Toggle deferred dots/crosses (after word vs inline)" style="margin-left:auto; font-size:12px; padding:6px 12px;">Defer</button>
+                <button class="btn active" id="autoShapeBtn" title="Derive rotation/slant/swell/rise from squiggle shape" style="margin-left:auto; font-size:12px; padding:6px 12px;">Auto Shape</button>
+                <button class="btn" id="deferBtn" title="Toggle deferred dots/crosses (after word vs inline)" style="font-size:12px; padding:6px 12px;">Defer</button>
                 <button class="btn" id="hyperBtn" title="Toggle Hyper Rainbow" style="font-size:12px; padding:6px 12px;">Hyper</button>
                 <button class="icon-btn" id="downloadBtn" title="Download PNG">&#8595;</button>
             </div>
@@ -194,6 +195,7 @@ const state = {
     slant: 0,
     loopWidth: 1.0,
     loopHeight: 1.0,
+    autoShape: true,
     forceHyper: null,
     deferSecondary: true,
     // Color cycling state
@@ -211,6 +213,14 @@ const FONT_NAMES = ['Allure', 'Script'];
 // ============================================
 
 function buildConfig() {
+    if (state.autoShape) {
+        const shape = SquigWord.deriveShapeFromSquiggle(state.seed, state.fontStyle);
+        state.rotation = shape.rotation;
+        state.slant = shape.slant;
+        state.loopWidth = shape.loopWidth;
+        state.loopHeight = shape.loopHeight;
+        syncShapeSliders();
+    }
     return {
         seed: state.seed,
         fontStyle: state.fontStyle,
@@ -221,6 +231,17 @@ function buildConfig() {
         colorOffset: state.colorOffset,
         deferSecondary: state.deferSecondary
     };
+}
+
+function syncShapeSliders() {
+    const rotEl = document.getElementById('rotationSlider');
+    const slantEl = document.getElementById('slantSlider');
+    const swellEl = document.getElementById('loopWidthSlider');
+    const riseEl = document.getElementById('loopHeightSlider');
+    if (rotEl) { rotEl.value = state.rotation; document.getElementById('rotationVal').innerHTML = (state.rotation * 180 / Math.PI).toFixed(1) + '&deg;'; }
+    if (slantEl) { slantEl.value = state.slant; document.getElementById('slantVal').innerHTML = (state.slant * 180 / Math.PI).toFixed(1) + '&deg;'; }
+    if (swellEl) { swellEl.value = state.loopWidth; document.getElementById('loopWidthVal').textContent = Math.round(state.loopWidth * 100) + '%'; }
+    if (riseEl) { riseEl.value = state.loopHeight; document.getElementById('loopHeightVal').textContent = Math.round(state.loopHeight * 100) + '%'; }
 }
 
 // ============================================
@@ -498,23 +519,31 @@ function setup() {
         render();
     });
 
-    // Shape sliders
+    // Shape sliders — manual move disables Auto Shape
+    function disableAutoShape() {
+        state.autoShape = false;
+        document.getElementById('autoShapeBtn').classList.remove('active');
+    }
     document.getElementById('rotationSlider').addEventListener('input', (e) => {
+        disableAutoShape();
         state.rotation = parseFloat(e.target.value);
         document.getElementById('rotationVal').innerHTML = (state.rotation * 180 / Math.PI).toFixed(1) + '&deg;';
         render();
     });
     document.getElementById('slantSlider').addEventListener('input', (e) => {
+        disableAutoShape();
         state.slant = parseFloat(e.target.value);
         document.getElementById('slantVal').innerHTML = (state.slant * 180 / Math.PI).toFixed(1) + '&deg;';
         render();
     });
     document.getElementById('loopWidthSlider').addEventListener('input', (e) => {
+        disableAutoShape();
         state.loopWidth = parseFloat(e.target.value);
         document.getElementById('loopWidthVal').textContent = Math.round(state.loopWidth * 100) + '%';
         render();
     });
     document.getElementById('loopHeightSlider').addEventListener('input', (e) => {
+        disableAutoShape();
         state.loopHeight = parseFloat(e.target.value);
         document.getElementById('loopHeightVal').textContent = Math.round(state.loopHeight * 100) + '%';
         render();
@@ -549,6 +578,13 @@ function setup() {
         state.seed = Math.floor(Math.random() * 10000);
         document.getElementById('seedInput').value = state.seed;
         randomizeShapeSliders();
+        render();
+    });
+
+    // Auto Shape toggle — derive rotation/slant/swell/rise from squiggle
+    document.getElementById('autoShapeBtn').addEventListener('click', () => {
+        state.autoShape = !state.autoShape;
+        document.getElementById('autoShapeBtn').classList.toggle('active', state.autoShape);
         render();
     });
 

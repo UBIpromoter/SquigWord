@@ -344,8 +344,8 @@ function computeFontYRange(font) {
 }
 
 const FONTS = {
-    Allure: { glyphs: FONT_ALLURE, yRange: computeFontYRange(FONT_ALLURE) },
-    Script: { glyphs: FONT_SCRIPT, yRange: computeFontYRange(FONT_SCRIPT) }
+    Allure: { glyphs: FONT_ALLURE, yRange: computeFontYRange(FONT_ALLURE), xHeight: computeXHeightRange(FONT_ALLURE) },
+    Script: { glyphs: FONT_SCRIPT, yRange: computeFontYRange(FONT_SCRIPT), xHeight: computeXHeightRange(FONT_SCRIPT) }
 };
 
 // ============================================
@@ -504,6 +504,97 @@ function getSnowfroHeight(canvasHeight, type) {
     return waveHeight + circleRadius * 2;
 }
 
+function measureSnowfroHeight(canvasHeight, type, seed) {
+    const decPairs = generateHash(seed);
+    const segments = Math.floor(map(decPairs[26], 0, 255, 12, 20));
+    const ht = map(decPairs[27], 0, 255, 3, 4);
+    const offsetY = canvasHeight / 2;
+    let minY = Infinity, maxY = -Infinity;
+    const steps = 50;
+    for (let j = 0; j < segments - 2; j++) {
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const y = curvePoint(
+                map(decPairs[j], 0, 255, -canvasHeight / ht, canvasHeight / ht),
+                map(decPairs[j + 1], 0, 255, -canvasHeight / ht, canvasHeight / ht),
+                map(decPairs[j + 2], 0, 255, -canvasHeight / ht, canvasHeight / ht),
+                map(decPairs[j + 3], 0, 255, -canvasHeight / ht, canvasHeight / ht),
+                t
+            ) + offsetY;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+        }
+    }
+    const circleRadius = {
+        Normal: canvasHeight / 13 / 2,
+        Bold: canvasHeight / 5 / 2,
+        Slinky: canvasHeight / 13 / 2,
+        Pipe: canvasHeight / 7 / 2,
+        Fuzzy: canvasHeight / 16 / 2,
+        Ribbed: canvasHeight / 12 / 2
+    }[type] || canvasHeight / 13 / 2;
+    return (maxY - minY) + circleRadius * 2;
+}
+
+function computeXHeightRange(glyphs) {
+    const xChars = 'acemnorsuvwxz';
+    let minY = Infinity, maxY = -Infinity;
+    for (const ch of xChars) {
+        const g = glyphs[ch];
+        if (!g) continue;
+        for (const stroke of g.strokes) {
+            for (const [, y] of stroke) { if (y < minY) minY = y; if (y > maxY) maxY = y; }
+        }
+    }
+    return maxY - minY || computeFontYRange(glyphs);
+}
+
+function getFontXHeight(fontStyle) {
+    return FONTS[fontStyle].xHeight;
+}
+
+// ============================================
+// DERIVE WORD SHAPE FROM SQUIGGLE
+// ============================================
+
+function deriveShapeFromSquiggle(seed, fontStyle) {
+    const decPairs = generateHash(seed);
+    const segments = Math.floor(map(decPairs[26], 0, 255, 12, 20));
+    const isScript = fontStyle === 'Script';
+
+    // Rise ← wave amplitude (ht factor)
+    // decPairs[27] controls ht: 0→ht=3 (tall waves), 255→ht=4 (flat waves)
+    const loopHeight = isScript
+        ? map(decPairs[27], 0, 255, 1.1, 1.0)
+        : map(decPairs[27], 0, 255, 1.1, 0.9);
+
+    // Rotation ← wave trend (slope of control points left to right)
+    const n = Math.min(segments, 20);
+    const startAvg = (decPairs[0] + decPairs[1] + decPairs[2]) / 3;
+    const endAvg = (decPairs[n - 3] + decPairs[n - 2] + decPairs[n - 1]) / 3;
+    const trend = endAvg - startAvg; // -255 to 255
+    const rotation = map(trend, -255, 255, -0.06, 0.10);
+
+    // Slant ← wave asymmetry (first half avg vs second half avg)
+    const mid = Math.floor(n / 2);
+    let firstHalf = 0, secondHalf = 0;
+    for (let i = 0; i < mid; i++) firstHalf += decPairs[i];
+    for (let i = mid; i < n; i++) secondHalf += decPairs[i];
+    firstHalf /= mid;
+    secondHalf /= (n - mid);
+    const asymmetry = secondHalf - firstHalf; // -255 to 255
+    const slant = map(asymmetry, -255, 255, -0.10, 0.10);
+
+    // Swell ← segment density
+    // More segments (20) = denser squiggle = slightly wider loops
+    // Fewer segments (12) = sparser = tighter loops
+    const loopWidth = isScript
+        ? 1.0
+        : map(segments, 12, 20, 0.88, 1.1);
+
+    return { rotation, slant, loopWidth, loopHeight };
+}
+
 // ============================================
 // RENDERING PIPELINE
 // ============================================
@@ -529,7 +620,12 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
     const widthTarget = charCount <= 1 ? 0.55 : charCount <= 2 ? 0.7 : charCount <= 3 ? 0.82 : 0.95;
     const maxWidth = canvasWidth * widthTarget;
 
-    // Compute Y range from FIRST WORD only — sets letter sizing for all words
+    // Size based on x-height (body characters) so letter bodies match squiggle height.
+    // Ascenders/descenders extend into padding above/below.
+    const xHeightRange = getFontXHeight(config.fontStyle);
+    const effectiveXHeight = xHeightRange * config.loopHeight;
+
+    // Also compute full Y range of first word for safety clamp
     const firstWord = text.split(' ')[0];
     let wordMinFY = Infinity, wordMaxFY = -Infinity;
     for (const char of firstWord) {
@@ -543,20 +639,23 @@ function buildWordPaths(text, canvasWidth, canvasHeight, type, config) {
         }
     }
     const wordYRange = (wordMaxFY - wordMinFY) || FONT_Y_RANGE;
-    const effectiveYRange = wordYRange * config.loopHeight;
 
-    // Hard ceiling: word rendered height must not exceed Snowfro squiggle height
-    const snowfroH = getSnowfroHeight(canvasHeight, type);
+    // Target: x-height = 75% of actual squiggle height for this seed
+    const actualSquigH = measureSnowfroHeight(canvasHeight, type, config.seed);
     const circleOvershoot = { Normal: 1.14, Bold: 1.25, Slinky: 1.15, Pipe: 1.32, Fuzzy: 1.14, Ribbed: 1.14 }[type] || 1.2;
-    const maxLetterHeight = snowfroH / circleOvershoot;
-    const maxHeightScale = maxLetterHeight / effectiveYRange;
+    const xHeightTarget = (actualSquigH / circleOvershoot) * 0.75;
+    const maxHeightScale = xHeightTarget / effectiveXHeight;
+
+    // Hard safety: full word (with ascenders/descenders + circles) must fit in canvas
+    const fullEffectiveRange = wordYRange * config.loopHeight;
+    const maxSafeScale = (canvasHeight * 0.88) / (fullEffectiveRange * circleOvershoot);
 
     // Account for circle radius extending beyond text on each side
     let widthPadding = 0;
-    if (type === 'Pipe') widthPadding = 2 * wordYRange / (0.57 * 5.5);
+    if (type === 'Pipe') widthPadding = 2 * xHeightRange / (0.57 * 5.5);
     else if (type === 'Bold') widthPadding = 2 * wordYRange / (0.57 * 7);
 
-    const scale = Math.min(maxWidth / (totalFontWidth + widthPadding), maxHeightScale);
+    const scale = Math.min(maxWidth / (totalFontWidth + widthPadding), maxHeightScale, maxSafeScale);
 
     const baselineY = canvasHeight * 0.55;
     let xOffset = (canvasWidth - totalFontWidth * scale) / 2;
@@ -941,7 +1040,7 @@ window.SquigWord = {
     map, generateHash, extractTraits, createRng, hsbToRgb, curvePoint,
     parseSvgPath, decodeHersheyFont, computeFontYRange,
     isDot, isCrossbar, findYExtrema,
-    getSnowfroHeight, getFontGlyphs, getFontYRange,
+    getSnowfroHeight, measureSnowfroHeight, getFontGlyphs, getFontYRange, getFontXHeight, deriveShapeFromSquiggle,
     buildWordPaths, computeDrawOps, drawParticles, renderSnowfro,
     resolveTraits
 };
