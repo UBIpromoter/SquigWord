@@ -143,7 +143,7 @@
                     </div>
                     <div class="slider-row">
                         <label>Rise</label>
-                        <input type="range" id="loopHeightSlider" min="0.75" max="1.2" step="0.02" value="1.0">
+                        <input type="range" id="loopHeightSlider" min="0.75" max="1.1" step="0.02" value="1.0">
                         <span class="slider-val" id="loopHeightVal">100%</span>
                     </div>
                 </div>
@@ -157,7 +157,8 @@
                     <input type="range" class="speed-slider" id="speedSlider" min="1" max="50" value="10">
                     <span class="slider-val" id="speedVal" style="min-width:24px;">10</span>
                 </div>
-                <button class="btn" id="hyperBtn" title="Toggle Hyper Rainbow" style="margin-left:auto; font-size:12px; padding:6px 12px;">Hyper</button>
+                <button class="btn" id="deferBtn" title="Toggle deferred dots/crosses (after word vs inline)" style="margin-left:auto; font-size:12px; padding:6px 12px;">Defer</button>
+                <button class="btn" id="hyperBtn" title="Toggle Hyper Rainbow" style="font-size:12px; padding:6px 12px;">Hyper</button>
                 <button class="icon-btn" id="downloadBtn" title="Download PNG">&#8595;</button>
             </div>
         </div>
@@ -194,6 +195,7 @@ const state = {
     loopWidth: 1.0,
     loopHeight: 1.0,
     forceHyper: null,
+    deferSecondary: true,
     // Color cycling state
     colorCycling: false,
     cycleSpeed: 0.08,
@@ -216,7 +218,8 @@ function buildConfig() {
         slant: state.slant,
         loopWidth: state.loopWidth,
         loopHeight: state.loopHeight,
-        colorOffset: state.colorOffset
+        colorOffset: state.colorOffset,
+        deferSecondary: state.deferSecondary
     };
 }
 
@@ -237,8 +240,9 @@ function render() {
     const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
     lastTraits = traits;
 
-    // Update hyper button visual
+    // Update button visuals
     document.getElementById('hyperBtn').classList.toggle('active', traits.hyperRainbow);
+    document.getElementById('deferBtn').classList.toggle('active', state.deferSecondary);
     updateButtons();
 
     if (!state.text.trim()) {
@@ -545,6 +549,12 @@ function setup() {
         state.seed = Math.floor(Math.random() * 10000);
         document.getElementById('seedInput').value = state.seed;
         randomizeShapeSliders();
+        render();
+    });
+
+    // Defer secondary strokes toggle
+    document.getElementById('deferBtn').addEventListener('click', () => {
+        state.deferSecondary = !state.deferSecondary;
         render();
     });
 
