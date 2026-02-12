@@ -376,8 +376,8 @@ function isCrossbar(stroke) {
 }
 
 // Explicit secondary strokes per font: drawn after the word (like i dot, t crossbar)
-// Needed where isDot/isCrossbar geometric detection misses (too many pts in Hershey data)
-// Allure's geometric detectors already catch i/j dots and t crossbar; only x needs explicit
+// When a font+char has an explicit entry, ONLY explicit set is used (geometric detection skipped).
+// When no entry exists, falls back to isDot/isCrossbar geometric detection.
 const SECONDARY_STROKES = {
     Script: {
         'i': new Set([0]),   // dot (5pts, isDot needs ≤3)
@@ -387,6 +387,15 @@ const SECONDARY_STROKES = {
     },
     Allure: {
         'x': new Set([1]),   // cross
+    },
+    EMSPepita: {
+        'e': new Set([]),    // stroke 1 is exit tail, NOT a dot
+        'f': new Set([1]),   // crossbar
+        'i': new Set([1]),   // dot
+        'j': new Set([1]),   // dot
+        'k': new Set([]),    // stroke 1 is lower leg, NOT secondary
+        'n': new Set([]),    // stroke 1 is exit tail, NOT secondary
+        't': new Set([1]),   // crossbar
     },
 };
 
@@ -785,8 +794,9 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
         for (let si = 0; si < glyph.strokes.length; si++) {
             const stroke = glyph.strokes[si];
             const fontSec = SECONDARY_STROKES[config.fontStyle];
-            const explicitSec = fontSec && fontSec[char] && fontSec[char].has(si);
-            const isSecondary = isThinMode ? false : (explicitSec || isDot(stroke) || isCrossbar(stroke));
+            const hasExplicitEntry = fontSec && char in fontSec;
+            const explicitSec = hasExplicitEntry && fontSec[char].has(si);
+            const isSecondary = isThinMode ? false : hasExplicitEntry ? explicitSec : (isDot(stroke) || isCrossbar(stroke));
             const transformedPath = transformStroke(stroke, {
                 glyphCenterX, glyphCenterY,
                 loopWidth: config.loopWidth + lwJitter,
@@ -934,12 +944,13 @@ function renderToParticles(text, width, height, type, spread, config) {
     if (allPaths.length === 0) return { particles: particles, adjustedSpread: spread };
 
     const referenceHeight = letterHeight / 0.57;
-    const normalDiam = referenceHeight / 13;
-    const boldDiam = referenceHeight / 7;
-    const pipeDiam = referenceHeight / 5.5;
-    const slinkyDiam = referenceHeight / 12;
-    const ribbedDiam = referenceHeight / 12;
-    const sw = referenceHeight / 1200;
+    const ps = config.penScale || 1.0;
+    const normalDiam = (referenceHeight / 13) * ps;
+    const boldDiam = (referenceHeight / 7) * ps;
+    const pipeDiam = (referenceHeight / 5.5) * ps;
+    const slinkyDiam = (referenceHeight / 12) * ps;
+    const ribbedDiam = (referenceHeight / 12) * ps;
+    const sw = (referenceHeight / 1200) * ps;
     const slinkySw = Math.max(sw * 2, 1.0);
 
     const div = Math.floor(map(Math.round(decPairs[24]), 0, 230, 3, 20));
@@ -1000,13 +1011,13 @@ function renderToParticles(text, width, height, type, spread, config) {
                 const ops = [];
 
                 if (isFuzzy) {
-                    const fuzzR = referenceHeight / 13;
+                    const fuzzR = (referenceHeight / 13) * ps;
                     const fuzzX = x + map(rng(), 0, 1, 0, fuzzR);
                     const fuzzY = y + map(rng(), 0, 1, 0, fuzzR);
                     const dist = Math.sqrt((x - fuzzX) ** 2 + (y - fuzzY) ** 2);
                     if (dist < fuzzR * 1.1) {
-                        const ps = map(rng(), 0, 1, referenceHeight / 100, referenceHeight / 20);
-                        ops.push({ x: fuzzX, y: fuzzY, radius: ps / 2, fill: `rgba(${r},${g},${b},${20/255})` });
+                        const fps = map(rng(), 0, 1, (referenceHeight / 100) * ps, (referenceHeight / 20) * ps);
+                        ops.push({ x: fuzzX, y: fuzzY, radius: fps / 2, fill: `rgba(${r},${g},${b},${20/255})` });
                     }
                 } else if (isSlinky) {
                     if (isPipe) {
@@ -1159,6 +1170,15 @@ function renderSnowfro(ctx, width, height, config) {
 }
 
 // ============================================
+// RUNTIME FONT REGISTRATION
+// ============================================
+
+function registerFont(name, glyphs) {
+    FONTS[name] = { glyphs, yRange: computeFontYRange(glyphs), xHeight: computeXHeightRange(glyphs) };
+    if (!FONT_NAMES.includes(name)) FONT_NAMES.push(name);
+}
+
+// ============================================
 // EXPORT
 // ============================================
 
@@ -1166,7 +1186,7 @@ window.SquigWord = {
     BACKGROUNDS, TYPES, FONT_NAMES,
     resolveTraits, deriveShape,
     renderToParticles, drawParticles, renderSnowfro,
-    hsbToRgb
+    hsbToRgb, registerFont
 };
 
 })();
