@@ -87,9 +87,9 @@
 <body>
     <div class="app">
         <div class="canvas-row">
-            <div class="canvas-wrap"><canvas id="canvas" width="1300" height="400"></canvas></div>
+            <div class="canvas-wrap"><canvas id="canvas" width="1400" height="500"></canvas></div>
             <div class="ref-wrap">
-                <canvas id="refCanvas" width="600" height="300"></canvas>
+                <canvas id="refCanvas" width="900" height="500"></canvas>
             </div>
         </div>
         <div class="panel">
@@ -97,7 +97,7 @@
                 <div class="field flex-grow">
                     <label class="field-label">TEXT</label>
                     <div class="input-group">
-                        <input type="text" id="textInput" value="Squiggles" maxlength="20" spellcheck="false">
+                        <input type="text" id="textInput" value="Squiggles" maxlength="40" spellcheck="false">
                         <button class="icon-btn" id="randWordBtn" title="Random word">&#8635;</button>
                         <button class="icon-btn" id="alphaLowerBtn" title="Cycle lowercase abcd→efgh→..." style="font-size:12px;font-weight:600;">az</button>
                         <button class="icon-btn" id="alphaUpperBtn" title="Cycle uppercase ABCD→EFGH→..." style="font-size:12px;font-weight:600;">AZ</button>
@@ -462,6 +462,11 @@ function setup() {
         };
         fontBtns.appendChild(btn);
     });
+
+    // Select all on focus for text inputs
+    for (const id of ['textInput', 'seedInput']) {
+        document.getElementById(id).addEventListener('focus', (e) => e.target.select());
+    }
 
     // Text input
     document.getElementById('textInput').addEventListener('input', (e) => {

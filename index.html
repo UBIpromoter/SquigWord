@@ -218,20 +218,22 @@
         }
         .credit { color: var(--dim); }
         .icon-btn.playing { background: var(--glow); border-color: var(--accent); color: var(--accent); }
+        .speed-slider { width: 80px; height: 4px; accent-color: var(--accent); display: none; }
+        .speed-slider.visible { display: block; }
     </style>
 </head>
 <body>
     <div class="app">
         <div class="canvas-row">
-            <div class="canvas-wrap"><canvas id="canvas" width="1300" height="500"></canvas></div>
-            <div class="ref-wrap"><canvas id="refCanvas" width="800" height="500"></canvas></div>
+            <div class="canvas-wrap"><canvas id="canvas" width="1400" height="600"></canvas></div>
+            <div class="ref-wrap"><canvas id="refCanvas" width="900" height="600"></canvas></div>
         </div>
         <div class="panel">
             <div class="field-row">
                 <div class="field flex-grow">
                     <label class="field-label">Text</label>
                     <div class="input-group">
-                        <input type="text" id="textInput" value="Squiggles" maxlength="20" spellcheck="false">
+                        <input type="text" id="textInput" value="Squiggles" maxlength="40" spellcheck="false">
                         <button class="icon-btn" id="randWordBtn" title="Random word">&#8635;</button>
                     </div>
                 </div>
@@ -255,7 +257,9 @@
                 <button class="icon-btn" id="modeToggle" title="Toggle light/dark">&#9728;</button>
                 <div style="display:flex;gap:8px;align-items:center">
                     <button class="icon-btn" id="animateBtn" title="Draw animation">&#9654;</button>
+                    <input type="range" class="speed-slider" id="drawSpeedSlider" min="1" max="20" value="3" title="Draw speed">
                     <button class="icon-btn" id="downloadBtn" title="Download PNG">&#8595;</button>
+                    <button class="icon-btn" id="downloadTransBtn" title="Download transparent PNG" style="font-size:12px;letter-spacing:-2px">&#8595;&#9723;</button>
                 </div>
             </div>
         </div>
@@ -286,7 +290,7 @@
         // Draw animation
         drawAnimating: false,
         drawProgress: 0,
-        drawSpeed: 10,
+        drawSpeed: 3,
     };
 
     function buildConfig() {
@@ -367,6 +371,7 @@
         state.drawProgress = 0;
         document.getElementById('animateBtn').textContent = '\u23F9';
         document.getElementById('animateBtn').classList.add('playing');
+        document.getElementById('drawSpeedSlider').classList.add('visible');
 
         const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
         const config = buildConfig();
@@ -379,6 +384,7 @@
         state.drawAnimating = false;
         document.getElementById('animateBtn').textContent = '\u25B6';
         document.getElementById('animateBtn').classList.remove('playing');
+        document.getElementById('drawSpeedSlider').classList.remove('visible');
         render();
     }
 
@@ -405,10 +411,24 @@
         hintTimeout = setTimeout(() => { hint.style.opacity = '0'; }, 3000);
     }
 
-    function downloadPNG() {
+    function downloadPNG(transparent) {
         const link = document.createElement('a');
-        link.download = `squigword-${state.text}-${state.seed}.png`;
-        link.href = canvas.toDataURL('image/png');
+        if (transparent) {
+            // Render to offscreen canvas with no background
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = canvas.width;
+            offCanvas.height = canvas.height;
+            const offCtx = offCanvas.getContext('2d');
+            const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+            const config = buildConfig();
+            const result = SquigWord.computeDrawOps(state.text, canvas.width, canvas.height, traits.type, traits.spread, config);
+            SquigWord.drawParticles(offCtx, result.particles);
+            link.download = `squigword-${state.text}-${state.seed}-transparent.png`;
+            link.href = offCanvas.toDataURL('image/png');
+        } else {
+            link.download = `squigword-${state.text}-${state.seed}.png`;
+            link.href = canvas.toDataURL('image/png');
+        }
         link.click();
     }
 
@@ -474,6 +494,11 @@
             fontBtns.appendChild(btn);
         });
 
+        // Select all on focus for text inputs
+        for (const id of ['textInput', 'seedInput']) {
+            document.getElementById(id).addEventListener('focus', (e) => e.target.select());
+        }
+
         // Text input
         document.getElementById('textInput').addEventListener('input', (e) => {
             state.text = e.target.value;
@@ -492,7 +517,9 @@
             'Noodle','Zigzag','Twisty','Curly','Swirly','Bouncy','Squishy','Fuzzy','Breezy','Snappy',
             'Mellow','Ripple','Shimmer','Flutter','Groove','Jumble','Tangle','Doodle','Sprinkle','Twirl',
             'Wavy','Floppy','Slinky','Bubbly','Zappy','Cosmic','Dreamy','Funky','Goofy','Jazzy',
-            'Quirky','Peppy','Zippy','Wacky','Dizzy','Glimmer','Sparkle','Wobble','Squish','Jiggle'
+            'Quirky','Peppy','Zippy','Wacky','Dizzy','Glimmer','Sparkle','Wobble','Squish','Jiggle',
+            'Hello World','Stay Groovy','Good Vibes','Keep it Wavy','Dream Big',
+            'Art is Fun','Go With the Flow','Just Vibes','On Chain Forever'
         ];
         document.getElementById('randWordBtn').addEventListener('click', () => {
             state.text = words[Math.floor(Math.random() * words.length)];
@@ -538,7 +565,11 @@
         // Mode toggle, animate, download
         document.getElementById('modeToggle').addEventListener('click', toggleDarkMode);
         document.getElementById('animateBtn').addEventListener('click', startDrawAnimation);
-        document.getElementById('downloadBtn').addEventListener('click', downloadPNG);
+        document.getElementById('drawSpeedSlider').addEventListener('input', (e) => {
+            state.drawSpeed = parseInt(e.target.value);
+        });
+        document.getElementById('downloadBtn').addEventListener('click', () => downloadPNG(false));
+        document.getElementById('downloadTransBtn').addEventListener('click', () => downloadPNG(true));
 
         updateButtons();
         render();
