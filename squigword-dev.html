@@ -186,7 +186,7 @@ const state = {
     seed: 42,
     forceType: 'Auto',
     fontStyle: 'Allure',
-    bgIndex: 7,
+    bgIndex: 10,
     darkMode: true,
     drawAnimating: false,
     drawProgress: 0,
@@ -214,7 +214,7 @@ const FONT_NAMES = ['Allure', 'Script'];
 
 function buildConfig() {
     if (state.autoShape) {
-        const shape = SquigWord.deriveShapeFromSquiggle(state.seed, state.fontStyle);
+        const shape = SquigWord.deriveShape(state.seed, state.fontStyle);
         state.rotation = shape.rotation;
         state.slant = shape.slant;
         state.loopWidth = shape.loopWidth;
@@ -249,17 +249,22 @@ function syncShapeSliders() {
 // ============================================
 
 let lastTraits = null;
+let lastResolvedType = null;
 
 function render() {
     const width = canvas.width;
     const height = canvas.height;
     const config = buildConfig();
 
-    ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
-    ctx.fillRect(0, 0, width, height);
-
     const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
     lastTraits = traits;
+
+    // Pipe's black underlay is invisible on pure black — nudge once on type transition
+    if (traits.type === 'Pipe' && lastResolvedType !== 'Pipe' && state.bgIndex === 10) state.bgIndex = 8;
+    lastResolvedType = traits.type;
+
+    ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
+    ctx.fillRect(0, 0, width, height);
 
     // Update button visuals
     document.getElementById('hyperBtn').classList.toggle('active', traits.hyperRainbow);
@@ -272,7 +277,7 @@ function render() {
         return;
     }
 
-    const { particles, adjustedSpread } = SquigWord.computeDrawOps(
+    const { particles, adjustedSpread } = SquigWord.renderToParticles(
         state.text, width, height, traits.type, traits.spread, config
     );
     SquigWord.drawParticles(ctx, particles);
@@ -335,7 +340,7 @@ function startDrawAnimation() {
 
     const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
     const config = buildConfig();
-    const result = SquigWord.computeDrawOps(state.text, canvas.width, canvas.height, traits.type, traits.spread, config);
+    const result = SquigWord.renderToParticles(state.text, canvas.width, canvas.height, traits.type, traits.spread, config);
     cachedParticles = result.particles;
     animateDrawing();
 }
@@ -378,6 +383,7 @@ function updateTraits(traits, startHue, endHue) {
         &rarr;
         <span class="color-dot" style="background:rgb(${er},${eg},${eb});margin:0 4px"></span>
         <span class="trait-val">${Math.round(endHue)}</span></span>
+        <span>bg <span class="trait-val">${state.bgIndex}</span></span>
     `;
 }
 
@@ -418,7 +424,7 @@ function toggleDarkMode() {
     state.darkMode = !state.darkMode;
     document.body.classList.toggle('light-mode', !state.darkMode);
     document.getElementById('modeToggle').textContent = state.darkMode ? '\u2600' : '\u263E';
-    state.bgIndex = state.darkMode ? 7 : 0;
+    state.bgIndex = state.darkMode ? 10 : 0;
     render();
 }
 
@@ -442,6 +448,8 @@ function setup() {
         btn.textContent = t;
         btn.onclick = () => {
             state.forceType = t;
+            // Pipe's black underlay is invisible on pure black — start on dark gray
+            if (t === 'Pipe' && state.bgIndex === 10) state.bgIndex = 8;
             updateButtons();
             render();
         };
@@ -634,8 +642,7 @@ function setup() {
         if (e.target.tagName === 'INPUT') return;
         if (e.code === 'Space') {
             e.preventDefault();
-            // Toggle background black/white
-            state.bgIndex = state.bgIndex === 7 ? 0 : 7;
+            state.bgIndex = (state.bgIndex + 1) % SquigWord.BACKGROUNDS.length;
             render();
         } else if (e.code === 'ArrowUp') {
             e.preventDefault();

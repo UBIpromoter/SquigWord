@@ -279,7 +279,7 @@
         seed: 42,
         forceType: 'Auto',
         fontStyle: 'Allure',
-        bgIndex: 7,
+        bgIndex: 10,
         darkMode: true,
         forceHyper: null,  // seed decides
         // Color cycling
@@ -295,7 +295,7 @@
 
     function buildConfig() {
         // Derive shape from the squiggle's actual wave properties
-        const shape = SquigWord.deriveShapeFromSquiggle(state.seed, state.fontStyle);
+        const shape = SquigWord.deriveShape(state.seed, state.fontStyle);
         return {
             seed: state.seed,
             fontStyle: state.fontStyle,
@@ -308,21 +308,26 @@
     }
 
     let lastTraits = null;
+    let lastResolvedType = null;
 
     function render() {
         const width = canvas.width;
         const height = canvas.height;
 
-        ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
-        ctx.fillRect(0, 0, width, height);
-
         const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
         lastTraits = traits;
+
+        // Pipe's black underlay is invisible on pure black — nudge once on type transition
+        if (traits.type === 'Pipe' && lastResolvedType !== 'Pipe' && state.bgIndex === 10) state.bgIndex = 8;
+        lastResolvedType = traits.type;
+
+        ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
+        ctx.fillRect(0, 0, width, height);
 
         if (!state.text.trim()) return;
 
         const config = buildConfig();
-        const { particles } = SquigWord.computeDrawOps(
+        const { particles } = SquigWord.renderToParticles(
             state.text, width, height, traits.type, traits.spread, config
         );
         SquigWord.drawParticles(ctx, particles);
@@ -375,7 +380,7 @@
 
         const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
         const config = buildConfig();
-        const result = SquigWord.computeDrawOps(state.text, canvas.width, canvas.height, traits.type, traits.spread, config);
+        const result = SquigWord.renderToParticles(state.text, canvas.width, canvas.height, traits.type, traits.spread, config);
         cachedParticles = result.particles;
         animateDrawing();
     }
@@ -421,7 +426,7 @@
             const offCtx = offCanvas.getContext('2d');
             const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
             const config = buildConfig();
-            const result = SquigWord.computeDrawOps(state.text, canvas.width, canvas.height, traits.type, traits.spread, config);
+            const result = SquigWord.renderToParticles(state.text, canvas.width, canvas.height, traits.type, traits.spread, config);
             SquigWord.drawParticles(offCtx, result.particles);
             link.download = `squigword-${state.text}-${state.seed}-transparent.png`;
             link.href = offCanvas.toDataURL('image/png');
@@ -436,7 +441,7 @@
         state.darkMode = !state.darkMode;
         document.body.classList.toggle('light-mode', !state.darkMode);
         document.getElementById('modeToggle').textContent = state.darkMode ? '\u2600' : '\u263E';
-        state.bgIndex = state.darkMode ? 7 : 0;
+        state.bgIndex = state.darkMode ? 10 : 0;
         render();
     }
 
@@ -466,7 +471,12 @@
             const btn = document.createElement('button');
             btn.className = 'btn';
             btn.textContent = t;
-            btn.onclick = () => { state.forceType = t; updateButtons(); render(); };
+            btn.onclick = () => {
+                state.forceType = t;
+                // Pipe's black underlay is invisible on pure black — start on dark gray
+                if (t === 'Pipe' && state.bgIndex === 10) state.bgIndex = 8;
+                updateButtons(); render();
+            };
             typeBtns.appendChild(btn);
         });
 
@@ -551,7 +561,7 @@
             if (e.target.tagName === 'INPUT') return;
             if (e.code === 'Space') {
                 e.preventDefault();
-                state.bgIndex = state.bgIndex === 7 ? 0 : 7;
+                state.bgIndex = (state.bgIndex + 1) % SquigWord.BACKGROUNDS.length;
                 render();
             } else if (e.code === 'ArrowUp') {
                 e.preventDefault();
