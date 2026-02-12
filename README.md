@@ -6,7 +6,7 @@ Built with single-stroke font paths (Hershey Script + hand-authored cursive) ren
 
 ## Try It
 
-**[Live Demo →](https://ubipromoter.github.io/SquigWord/squigword.html)**
+**[Live Demo →](https://ubipromoter.github.io/SquigWord/)**
 
 Type a word. Pick a seed. Watch it squiggle.
 
@@ -23,7 +23,7 @@ Seeds drive everything — type, color, shape parameters — just like the on-ch
 | File | Purpose |
 |------|---------|
 | `squigword-engine.js` | Rendering engine — fonts, parsing, drawing pipeline |
-| `squigword.html` | User-facing UI — clean controls, single canvas |
+| `index.html` | User-facing UI — clean controls, single canvas |
 | `squigword-dev.html` | Dev UI — all controls, reference squiggle, shape sliders |
 
 ## Credits
