@@ -293,6 +293,15 @@ if (FONT_ALLURE['P']) {
     }
 }
 
+// Allure 'a': reverse stroke direction — original starts at right (x=495) and ends mid (x=324),
+// but cursive 'a' should flow left-to-right (bowl sweep then exit right)
+if (FONT_ALLURE['a']) {
+    FONT_ALLURE['a'].strokes[0] = [...FONT_ALLURE['a'].strokes[0]].reverse();
+}
+
+// Exit tails: reserved for future use if we re-enable capital connections.
+// Currently capitals are disconnected (rendered standalone), so these don't fire.
+const EXIT_TAILS = {};
 
 const FONT_SCRIPT = {};
 for (const [char, data] of Object.entries(HERSHEY_SCRIPT)) {
@@ -475,6 +484,15 @@ const SECONDARY_STROKES = {
     },
     Allure: {
         'x': new Set([1]),   // cross
+        // Capital secondary strokes — keep only the body/stem as primary for clean connections
+        'F': new Set([1, 2]),   // hood flourish + crossbar secondary; stem is primary
+        'H': new Set([0, 2]),   // left leg + crossbar secondary; right leg is primary
+        'I': new Set([1]),      // top flourish secondary; downstroke is primary
+        'J': new Set([1]),      // top flourish secondary; main body is primary
+        'K': new Set([0, 1]),   // left leg + diagonal secondary; right lower leg is primary
+        'R': new Set([0]),      // stem secondary; bowl swoop is primary
+        'T': new Set([0]),      // top flourish secondary; downstroke is primary
+        'X': new Set([0, 2]),   // cap + back-cross secondary; forward diagonal is primary
     },
     EMSPepita: {
         'e': new Set([]),    // stroke 1 is exit tail, NOT a dot
@@ -960,6 +978,12 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
             flushWord();
         }
 
+        // Capitals render standalone — their structure looks better without bridges
+        const isCapital = char >= 'A' && char <= 'Z';
+        if (isCapital) {
+            flushWord();
+        }
+
         // Per-letter variation — seed-driven, each letter drawn by the same hand but not identical.
         // Uses Snowfro's hash (decPairs) for coarse variation, letterVarianceRng for fine grain.
         const li = letterIdx;
@@ -997,8 +1021,18 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
         }
         const glyphCenterY = (glyphMinY + glyphMaxY) / 2;
 
+        // Check if this letter has a follower to connect to (for exit tails)
+        const nextChar = li < text.length - 1 ? text[li + 1] : null;
+        const hasFollower = nextChar && nextChar !== ' ' && !PUNCT.has(nextChar);
+        const fontTails = EXIT_TAILS[config.fontStyle];
+
         for (let si = 0; si < glyph.strokes.length; si++) {
-            const stroke = glyph.strokes[si];
+            // Append exit tail to primary stroke when followed by another letter
+            const tailEntry = fontTails && fontTails[char];
+            let stroke = glyph.strokes[si];
+            if (tailEntry && si === tailEntry[0] && hasFollower) {
+                stroke = [...stroke, ...tailEntry[1]];
+            }
             const fontSec = SECONDARY_STROKES[config.fontStyle];
             const hasExplicitEntry = fontSec && char in fontSec;
             const explicitSec = hasExplicitEntry && fontSec[char].has(si);
@@ -1027,9 +1061,8 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
             }
             const defer = config.deferSecondary !== false;
             if (isSecondary && defer) {
-                const isUpperCase = char >= 'A' && char <= 'Z';
-                if (isUpperCase) allPaths.push(transformedPath);
-                else currentWordSecondary.push(transformedPath);
+                // All secondaries deferred to after word path — renders body first, then crossbars/dots/flourishes
+                currentWordSecondary.push(transformedPath);
             } else {
                 // Collect primaries for word-path concatenation
                 currentWordPrimary.push(transformedPath);
@@ -1039,8 +1072,8 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
         const boldExtra = isBoldType ? glyph.width * (isUpper ? 0.08 : 0.2) : 0;
         xOffset += (glyph.width + boldExtra) * scale;
         letterIdx++;
-        if (PUNCT.has(char)) {
-            // Flush punct so it doesn't concatenate with the next letter
+        if (PUNCT.has(char) || isCapital) {
+            // Flush punct/capitals so they don't concatenate with the next letter
             flushWord();
         }
     }
