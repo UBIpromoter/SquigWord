@@ -85,6 +85,7 @@
     </style>
 </head>
 <body>
+    <button onclick="location.reload()" style="position:fixed;top:12px;right:12px;z-index:99999;padding:8px 18px;font-size:15px;font-weight:600;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:8px;cursor:pointer;backdrop-filter:blur(12px);transition:all 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.22)';this.style.color='#fff'" onmouseout="this.style.background='rgba(255,255,255,0.12)';this.style.color='rgba(255,255,255,0.7)'">↻ Refresh</button>
     <div class="app">
         <div class="canvas-row">
             <div class="canvas-wrap"><canvas id="canvas" width="1400" height="500"></canvas></div>
@@ -153,17 +154,23 @@
                 <button class="icon-btn" id="modeToggle" title="Toggle light/dark">&#9728;</button>
                 <button class="icon-btn" id="animateBtn" title="Watch it draw">&#9654;</button>
                 <div class="speed-control">
-                    <label>Speed</label>
-                    <input type="range" class="speed-slider" id="speedSlider" min="1" max="50" value="10">
-                    <span class="slider-val" id="speedVal" style="min-width:24px;">10</span>
+                    <label>Draw</label>
+                    <input type="range" class="speed-slider" id="speedSlider" min="1" max="50" value="15">
+                    <span class="slider-val" id="speedVal" style="min-width:24px;">15</span>
+                </div>
+                <div class="speed-control">
+                    <label>Type</label>
+                    <input type="range" class="speed-slider" id="typeSpeedSlider" min="5" max="80" value="25">
+                    <span class="slider-val" id="typeSpeedVal" style="min-width:24px;">25</span>
                 </div>
                 <button class="btn active" id="autoShapeBtn" title="Derive rotation/slant/swell/rise from squiggle shape" style="margin-left:auto; font-size:12px; padding:6px 12px;">Auto Shape</button>
                 <button class="btn" id="deferBtn" title="Toggle deferred dots/crosses (after word vs inline)" style="font-size:12px; padding:6px 12px;">Defer</button>
                 <button class="btn" id="hyperBtn" title="Toggle Hyper Rainbow" style="font-size:12px; padding:6px 12px;">Hyper</button>
+                <button class="btn active" id="connectedBtn" title="Toggle word-path concatenation (before/after)" style="font-size:12px; padding:6px 12px;">Connected</button>
                 <button class="icon-btn" id="downloadBtn" title="Download PNG">&#8595;</button>
             </div>
         </div>
-        <footer class="footer">SquigWord Dev &middot; inspired by <span class="credit">snowfro</span></footer>
+        <footer class="footer">inspired by <span class="credit">Snowfro</span> &middot; vibe-coded with &hearts; by <span class="credit">UBIpromoter</span> &amp; <span class="credit">Claude</span></footer>
     </div>
 
 <script src="squigword-engine.js"></script>
@@ -189,8 +196,8 @@ const state = {
     bgIndex: 10,
     darkMode: true,
     drawAnimating: false,
-    drawProgress: 0,
-    drawSpeed: 10,
+    drawSpeed: 15,
+    typeSpeed: 25,
     rotation: 0.03,
     slant: 0,
     loopWidth: 1.0,
@@ -203,6 +210,15 @@ const state = {
     cycleSpeed: 0.08,
     colorOffset: 0,
     cycleAnimFrame: null,
+    // Word-path toggle (before/after comparison)
+    wordPath: true,
+    // Type-to-draw animation (distance-based pen speed)
+    typeDrawing: false,
+    typeDrawParticles: null,
+    typeDrawPrevLen: 0,
+    typeDrawDists: null,       // cumulative distance array for new particles
+    typeDrawDistProgress: 0,   // current distance traveled
+    prevParticleCount: 0,
 };
 
 const TYPES = ['Auto', 'Normal', 'Bold', 'Slinky', 'Pipe', 'Fuzzy', 'Ribbed'];
@@ -213,8 +229,8 @@ const FONT_NAMES = ['Allure', 'Script'];
 // ============================================
 
 function buildConfig() {
+    const shape = SquigWord.deriveShape(state.seed, state.fontStyle);
     if (state.autoShape) {
-        const shape = SquigWord.deriveShape(state.seed, state.fontStyle);
         state.rotation = shape.rotation;
         state.slant = shape.slant;
         state.loopWidth = shape.loopWidth;
@@ -229,7 +245,9 @@ function buildConfig() {
         loopWidth: state.loopWidth,
         loopHeight: state.loopHeight,
         colorOffset: state.colorOffset,
-        deferSecondary: state.deferSecondary
+        deferSecondary: state.deferSecondary,
+        hand: shape.hand,
+        wordPath: state.wordPath
     };
 }
 
@@ -282,6 +300,10 @@ function render() {
     );
     SquigWord.drawParticles(ctx, particles);
 
+    // Keep type-draw animation baseline in sync with actual particle count
+    // so the next keystroke animates from the right position
+    state.prevParticleCount = particles.length;
+
     const effectiveStartColor = ((traits.startColor + state.colorOffset) % 255 + 255) % 255;
     const totalColor = particles.length;
     const endHue = traits.reverse
@@ -330,11 +352,13 @@ function colorCycleLoop() {
 
 let cachedParticles = null;
 
+let drawDists = null;
+let drawDistProgress = 0;
+
 function startDrawAnimation() {
     if (state.drawAnimating) { stopDrawAnimation(); return; }
     if (state.colorCycling) stopColorCycling(); // mutually exclusive
     state.drawAnimating = true;
-    state.drawProgress = 0;
     document.getElementById('animateBtn').textContent = '\u23F9';
     document.getElementById('animateBtn').classList.add('playing');
 
@@ -342,11 +366,23 @@ function startDrawAnimation() {
     const config = buildConfig();
     const result = SquigWord.renderToParticles(state.text, canvas.width, canvas.height, traits.type, traits.spread, config);
     cachedParticles = result.particles;
+
+    // Pre-compute cumulative path distances
+    const len = cachedParticles.length;
+    drawDists = new Float64Array(len);
+    drawDists[0] = 0;
+    for (let i = 1; i < len; i++) {
+        const a = cachedParticles[i - 1][0];
+        const b = cachedParticles[i][0];
+        drawDists[i] = drawDists[i - 1] + Math.hypot(b.x - a.x, b.y - a.y);
+    }
+    drawDistProgress = 0;
     animateDrawing();
 }
 
 function stopDrawAnimation() {
     state.drawAnimating = false;
+    drawDists = null;
     document.getElementById('animateBtn').textContent = '\u25B6';
     document.getElementById('animateBtn').classList.remove('playing');
     render();
@@ -356,14 +392,117 @@ function animateDrawing() {
     if (!state.drawAnimating || !cachedParticles || cachedParticles.length === 0) {
         stopDrawAnimation(); return;
     }
-    const total = cachedParticles.length;
-    const toDraw = Math.min(Math.floor(state.drawProgress), total);
+    const totalDist = drawDists[drawDists.length - 1];
+
+    // Advance by distance (pixels per frame) — consistent pen speed
+    drawDistProgress += state.drawSpeed * 3;
+
+    // Binary search: find particle index at current distance
+    let lo = 0, hi = drawDists.length - 1;
+    while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (drawDists[mid] <= drawDistProgress) lo = mid; else hi = mid - 1;
+    }
+    const toDraw = lo + 1;
+
     ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     SquigWord.drawParticles(ctx, cachedParticles.slice(0, toDraw));
-    state.drawProgress += state.drawSpeed * 3;
-    if (state.drawProgress >= total) { stopDrawAnimation(); }
+
+    if (drawDistProgress >= totalDist) { stopDrawAnimation(); }
     else { requestAnimationFrame(animateDrawing); }
+}
+
+// ============================================
+// TYPE-TO-DRAW ANIMATION
+// ============================================
+// When typing, the new letter draws itself in progressively while
+// previously typed letters stay rendered. Creates a "watching someone
+// write" effect — the pen continues from where it left off.
+
+function startTypeDraw(particles, fromIdx, adjustedSpread, traits) {
+    // Stop any other animations
+    if (state.drawAnimating) stopDrawAnimation();
+    if (state.colorCycling) stopColorCycling();
+
+    // Pre-compute cumulative path distance for the new particles
+    const newLen = particles.length - fromIdx;
+    const dists = new Float64Array(newLen);
+    dists[0] = 0;
+    for (let i = 1; i < newLen; i++) {
+        const a = particles[fromIdx + i - 1][0];
+        const b = particles[fromIdx + i][0];
+        dists[i] = dists[i - 1] + Math.hypot(b.x - a.x, b.y - a.y);
+    }
+
+    state.typeDrawing = true;
+    state.typeDrawParticles = particles;
+    state.typeDrawPrevLen = fromIdx;
+    state.typeDrawDists = dists;
+    state.typeDrawDistProgress = 0;
+    state.typeDrawSpread = adjustedSpread;
+    state.typeDrawTraits = traits;
+
+    typeDrawLoop();
+}
+
+function stopTypeDraw() {
+    state.typeDrawing = false;
+    if (state.typeDrawParticles) {
+        state.prevParticleCount = state.typeDrawParticles.length;
+    }
+    state.typeDrawParticles = null;
+    state.typeDrawDists = null;
+    render();
+}
+
+function typeDrawLoop() {
+    if (!state.typeDrawing || !state.typeDrawParticles) {
+        stopTypeDraw(); return;
+    }
+    const dists = state.typeDrawDists;
+    const totalDist = dists[dists.length - 1];
+    const total = state.typeDrawParticles.length;
+
+    // t = progress through this letter's path (0→1)
+    const t = totalDist > 0 ? Math.min(state.typeDrawDistProgress / totalDist, 1) : 1;
+    // Ease-in-out: slower at start/end (pen lift/land), faster in middle
+    const ease = 0.5 + 2.0 * Math.sin(t * Math.PI);
+
+    // Advance by distance (pixels per frame) — consistent pen speed
+    state.typeDrawDistProgress += state.typeSpeed * ease;
+
+    // Binary search: find particle index at current distance
+    let lo = 0, hi = dists.length - 1;
+    const target = state.typeDrawDistProgress;
+    while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (dists[mid] <= target) lo = mid; else hi = mid - 1;
+    }
+    const toDraw = Math.min(state.typeDrawPrevLen + lo + 1, total);
+
+    ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    SquigWord.drawParticles(ctx, state.typeDrawParticles.slice(0, toDraw));
+
+    if (state.typeDrawDistProgress >= totalDist) {
+        state.typeDrawing = false;
+        state.typeDrawParticles = null;
+        state.typeDrawDists = null;
+        // Update traits display
+        const effectiveStartColor = ((state.typeDrawTraits.startColor + state.colorOffset) % 255 + 255) % 255;
+        const endHue = state.typeDrawTraits.reverse
+            ? 255 - (((total / state.typeDrawSpread) + effectiveStartColor) % 255)
+            : (((total / state.typeDrawSpread) + effectiveStartColor) % 255);
+        updateTraits(state.typeDrawTraits, effectiveStartColor, endHue);
+        // Update ref squiggle
+        SquigWord.renderSnowfro(refCtx, refCanvas.width, refCanvas.height, {
+            seed: state.seed, forceType: state.forceType, forceHyper: state.forceHyper,
+            bgIndex: state.bgIndex, colorOffset: state.colorOffset
+        });
+    } else {
+        requestAnimationFrame(typeDrawLoop);
+    }
 }
 
 // ============================================
@@ -476,15 +615,77 @@ function setup() {
         document.getElementById(id).addEventListener('focus', (e) => e.target.select());
     }
 
-    // Text input
+    // Text input — with type-to-draw animation
+    // When characters are added, animate the new letter being drawn.
+    // prevParticleCount tracks how many particles are "already written" so we
+    // know where to start the animation for the new letter.
+    let prevText = state.text;
+    state.prevParticleCount = 0;
+
     document.getElementById('textInput').addEventListener('input', (e) => {
-        state.text = e.target.value;
-        render();
+        const newText = e.target.value;
+        const wasAdding = newText.length > prevText.length;
+        prevText = newText;
+        state.text = newText;
+
+        // If currently type-drawing, finish instantly before starting next letter
+        if (state.typeDrawing) {
+            state.typeDrawing = false;
+            if (state.typeDrawParticles) {
+                state.prevParticleCount = state.typeDrawParticles.length;
+            }
+            state.typeDrawParticles = null;
+            state.typeDrawDists = null;
+        }
+
+        if (wasAdding && newText.trim()) {
+            const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+            const config = buildConfig();
+            try {
+                const { particles, adjustedSpread } = SquigWord.renderToParticles(
+                    newText, canvas.width, canvas.height, traits.type, traits.spread, config
+                );
+                if (particles.length > state.prevParticleCount) {
+                    startTypeDraw(particles, state.prevParticleCount, adjustedSpread, traits);
+                    state.prevParticleCount = particles.length;
+                } else {
+                    state.prevParticleCount = particles.length;
+                    render();
+                }
+            } catch (err) { render(); }
+        } else {
+            // Backspace or clear — re-render instantly, update particle count
+            if (newText.trim()) {
+                const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+                const config = buildConfig();
+                try {
+                    const { particles } = SquigWord.renderToParticles(
+                        newText, canvas.width, canvas.height, traits.type, traits.spread, config
+                    );
+                    state.prevParticleCount = particles.length;
+                } catch (e) { state.prevParticleCount = 0; }
+            } else {
+                state.prevParticleCount = 0;
+            }
+            render();
+        }
     });
 
-    // Seed input
+    // Initialize particle count for the default text
+    try {
+        const initTraits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+        const initConfig = buildConfig();
+        const initResult = SquigWord.renderToParticles(
+            state.text, canvas.width, canvas.height, initTraits.type, initTraits.spread, initConfig
+        );
+        state.prevParticleCount = initResult.particles.length;
+    } catch (e) { state.prevParticleCount = 0; }
+
+    // Seed input — reset particle count since different seed = different layout
     document.getElementById('seedInput').addEventListener('input', (e) => {
         state.seed = parseInt(e.target.value) || 0;
+        state.prevParticleCount = 0;
+        prevText = state.text;
         render();
     });
 
@@ -501,6 +702,7 @@ function setup() {
         state.seed = Math.floor(Math.random() * 100000);
         document.getElementById('textInput').value = state.text;
         document.getElementById('seedInput').value = state.seed;
+        prevText = state.text;
         render();
     });
 
@@ -523,12 +725,14 @@ function setup() {
         state.text = alphaChunk('abcdefghijklmnopqrstuvwxyz', alphaLowerIdx);
         alphaLowerIdx = (alphaLowerIdx + 4) % 26;
         document.getElementById('textInput').value = state.text;
+        prevText = state.text;
         render();
     });
     document.getElementById('alphaUpperBtn').addEventListener('click', () => {
         state.text = alphaChunk('ABCDEFGHIJKLMNOPQRSTUVWXYZ', alphaUpperIdx);
         alphaUpperIdx = (alphaUpperIdx + 4) % 26;
         document.getElementById('textInput').value = state.text;
+        prevText = state.text;
         render();
     });
 
@@ -616,6 +820,13 @@ function setup() {
         render();
     });
 
+    // Connected toggle (word-path before/after)
+    document.getElementById('connectedBtn').addEventListener('click', () => {
+        state.wordPath = !state.wordPath;
+        document.getElementById('connectedBtn').classList.toggle('active', state.wordPath);
+        render();
+    });
+
     // Action row
     document.getElementById('modeToggle').addEventListener('click', toggleDarkMode);
     document.getElementById('downloadBtn').addEventListener('click', downloadPNG);
@@ -623,6 +834,10 @@ function setup() {
     document.getElementById('speedSlider').addEventListener('input', (e) => {
         state.drawSpeed = parseInt(e.target.value);
         document.getElementById('speedVal').textContent = state.drawSpeed;
+    });
+    document.getElementById('typeSpeedSlider').addEventListener('input', (e) => {
+        state.typeSpeed = parseInt(e.target.value);
+        document.getElementById('typeSpeedVal').textContent = state.typeSpeed;
     });
 
     // Canvas click — toggle color cycling

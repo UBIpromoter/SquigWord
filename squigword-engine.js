@@ -70,7 +70,56 @@ const EMS_ALLURE = {
 'W': {w:1206.4, d:'M 69.3 444 L 34.6 476 L 9.45 545 L 47.2 614 L 145 662 L 265 680 L 391 677 L 460 665 L 488 652 M 416 709 L 387 592 L 328 501 L 220 353 L 135 217 L 91.4 145 L 53.5 66.1 L 41 6.3 L 47.2 -37.8 L 63 -56.7 L 97.6 -66.1 L 148 -59.9 L 233 -28.4 L 328 28.4 L 394 85.1 L 495 167 L 586 268 L 684 394 L 712 469 L 721 529 L 712 586 L 677 570 L 665 507 L 668 416 L 662 299 L 687 176 L 731 91.4 L 788 40.9 L 876 3.15 L 939 12.6 L 986 31.5 L 1052.1 126 L 1096.2 224 L 1118.2 324 L 1127.7 387 L 1115.1 517 L 1083.6 598 L 1017.4 649 L 945 668 L 898 662 L 876 643'},
 'X': {w:806, d:'M 66.1 457 L 15.8 491 L 3.15 554 L 25.2 621 L 104 665 L 195 687 L 268 696 L 378 684 L 441 674 L 469 665 L 485 662 M 419 699 L 397 561 L 410 410 L 432 284 L 488 148 L 558 53.6 L 621 15.8 L 702 50.4 L 775 113 L 816 158 M 778 696 L 696 583 L 570 419 L 469 287 L 350 173 L 243 63 L 135 -15.8 L 31.5 -88.2 L -101 -132 L -192 -120 L -246 -101 L -268 -59.9 L -271 -41'},
 'Y': {w:627, d:'M 28.4 482 L 34.6 485 L 120 523 L 195 583 L 252 646 L 277 665 L 287 668 L 230 554 L 142 394 L 69.3 230 L 56.7 154 L 50.4 75.6 L 85 15.8 L 158 15.8 L 233 53.6 L 334 145 L 403 220 L 463 306 L 542 416 L 595 510 L 621 586 L 662 649 L 715 674 L 759 680 L 684 633 L 633 576 L 583 400 L 526 205 L 457 -6.3 L 406 -113 L 346 -211 L 296 -284 L 233 -346 L 148 -400 L 69.3 -413 L 31.5 -400 L 3.15 -350 L 6.3 -296 L 37.8 -233 L 107 -151 L 205 -59.9 L 331 9.45 L 416 40.9 L 570 91.4 L 598 91.4'},
-'Z': {w:627, d:'M 145 554 L 135 611 L 180 662 L 255 693 L 381 699 L 501 690 L 595 674 L 674 649 L 734 633 L 788 649 L 822 668 L 835 702 L 803 709 L 759 684 L 721 646 L 595 539 L 457 400 L 362 290 L 302 224 L 227 148 L 164 104 L 107 63 L 56.7 37.8 L 18.9 28.4 L 0 53.6 L 15.8 72.4 L 63 53.6 L 145 22 L 243 -50.4 L 378 -135 L 513 -205 L 671 -205 L 747 -167 L 781 -97.6 L 775 -69.3 L 769 -41 M 239 340 L 236 321 L 621 340'}
+'Z': {w:627, d:'M 145 554 L 135 611 L 180 662 L 255 693 L 381 699 L 501 690 L 595 674 L 674 649 L 734 633 L 788 649 L 822 668 L 835 702 L 803 709 L 759 684 L 721 646 L 595 539 L 457 400 L 362 290 L 302 224 L 227 148 L 164 104 L 107 63 L 56.7 37.8 L 18.9 28.4 L 0 53.6 L 15.8 72.4 L 63 53.6 L 145 22 L 243 -50.4 L 378 -135 L 513 -205 L 671 -205 L 747 -167 L 781 -97.6 L 775 -69.3 L 769 -41 M 239 340 L 236 321 L 621 340'},
+// --- Digits ---
+'0': {w:662, d:'M 466 583 L 432 608 L 343 611 L 293 589 L 189 520 L 132 463 L 85 387 L 47.2 265 L 41 164 L 81.9 63 L 151 15.8 L 230 -6.3 L 318 9.45 L 422 63 L 520 161 L 576 268 L 608 384 L 608 479 L 583 558 L 532 608 L 479 649 L 425 665 L 350 668'},
+'1': {w:378, d:'M 170 450 L 261 523 L 315 589 L 356 646 L 384 646 L 287 428 L 192 211 L 154 101 L 145 37.8 M 6.3 9.45 L 69.3 31.5 L 132 31.5 L 205 37.8 L 284 34.6'},
+'2': {w:702, d:'M 198 491 L 195 501 L 195 536 L 287 602 L 372 630 L 472 643 L 573 621 L 621 586 L 649 510 L 617 432 L 539 346 L 435 265 L 350 205 L 261 148 L 198 113 L 170 97.6 L 123 66.1 L 104 47.2 L 56.7 15.8 L 56.7 47.2 L 81.9 81.9 L 120 94.5 L 186 91.4 L 255 66.1 L 299 37.8 L 403 -3.15 L 513 -6.3 L 570 18.9 L 617 56.7 L 630 85.1'},
+'3': {w:665, d:'M 239 498 L 255 567 L 321 617 L 406 639 L 479 643 L 558 624 L 605 564 L 608 498 L 589 460 L 545 422 L 510 394 L 438 378 L 362 365 L 312 346 L 299 356 L 293 384 L 369 378 L 482 356 L 536 337 L 567 290 L 576 208 L 554 145 L 495 78.8 L 428 31.5 L 353 0 L 220 -18.9 L 148 -9.45 L 104 18.9 L 75.6 72.4 L 85 110 L 101 132'},
+'4': {w:558, d:'M 243 -6.3 L 268 94.5 L 321 249 L 419 463 L 504 636 L 372 526 L 239 422 L 104 340 L 37.8 284 L -3.15 224 L 50.4 252 L 88.2 268 L 183 268 L 261 265 L 334 249 L 410 249 L 491 280 L 529 306 L 554 337'},
+'5': {w:643, d:'M 318 608 L 220 460 L 164 362 L 220 397 L 312 428 L 387 432 L 460 416 L 523 378 L 548 321 L 548 255 L 523 183 L 457 101 L 378 50.4 L 284 12.6 L 192 -3.15 L 117 -3.15 L 50.4 9.45 L 3.15 31.5 L -25.2 78.8 L -34.6 129 L -15.8 154 M 280 614 L 422 624 L 570 630 L 652 624'},
+'6': {w:602, d:'M 551 507 L 554 576 L 523 624 L 450 636 L 337 614 L 214 520 L 145 432 L 88.2 312 L 59.9 186 L 69.3 97.6 L 120 31.5 L 195 6.3 L 274 6.3 L 334 34.6 L 406 91.4 L 454 154 L 479 252 L 463 324 L 406 365 L 337 372 L 271 359 L 227 321'},
+'7': {w:501, d:'M 110 507 L 148 592 L 208 630 L 318 636 L 447 621 L 523 617 L 576 611 L 617 633 L 435 438 L 293 261 L 189 139 L 126 31.5 L 113 25.2'},
+'8': {w:592, d:'M 384 662 L 268 611 L 195 536 L 202 460 L 227 406 L 293 375 L 359 375 L 435 350 L 482 280 L 479 195 L 444 145 L 343 75.6 L 255 25.2 L 173 15.8 L 94.5 22 L 37.8 53.6 L 25.2 132 L 69.3 214 L 170 290 L 422 428 L 501 469 L 554 513 L 573 589 L 548 643 L 491 668 L 384 662'},
+'9': {w:605, d:'M 369 328 L 318 293 L 243 284 L 164 309 L 126 359 L 126 454 L 170 551 L 239 611 L 299 643 L 403 658 L 485 630 L 539 558 L 551 482 L 529 369 L 498 284 L 435 183 L 359 110 L 284 50.4 L 227 22 L 158 9.45 L 104 9.45 L 47.2 53.6 L 34.6 88.2 L 37.8 158'},
+// --- Punctuation ---
+'.': {w:224, d:'M 145 63 L 129 37.8'},
+',': {w:211, d:'M 104 56.7 L 123 22 L 101 -9.45 L 28.4 -117'},
+'?': {w:564, d:'M 139 561 L 151 602 L 173 624 L 246 665 L 309 696 L 413 693 L 469 652 L 498 561 L 466 476 L 422 413 L 362 365 L 315 337 L 246 280 L 214 236 L 202 205 M 129 56.7 L 107 31.5'},
+'!': {w:359, d:'M 444 665 L 403 592 L 295 362 L 232 214 M 204 63 L 182 40.9'},
+"'": {w:173, d:'M 97.6 551 L 78.8 400'},
+'"': {w:302, d:'M 94.5 548 L 78.8 403 M 233 548 L 211 400'},
+'@': {w:895, d:'M 602 517 L 510 551 L 381 501 L 284 428 L 220 356 L 186 293 L 183 236 L 208 202 L 249 186 L 309 202 L 362 252 L 450 340 L 554 463 L 576 463 L 529 369 L 507 299 L 501 214 L 529 183 L 598 189 L 680 255 L 750 359 L 788 447 L 797 554 L 759 649 L 658 712 L 539 724 L 406 709 L 265 646 L 132 542 L 53.5 438 L -3.15 284 L 6.3 170 L 41 97.6 L 132 18.9 L 258 -15.8 L 410 -12.6 L 570 28.4 L 580 34.6 L 715 123 L 788 202 L 816 258 L 822 312 L 816 378'},
+'$': {w:592, d:'M 372 403 L 447 463 L 479 532 L 463 586 L 419 608 L 328 608 L 205 576 L 126 513 L 97.6 457 L 91.4 422 L 97.6 375 L 246 198 L 274 151 L 249 117 L 192 101 L 142 107 L 88.2 117 L 63 129 M 432 658 L 403 633 L 239 359 L 63 12.6'},
+'&': {w:828, d:'M 602 658 L 573 646 L 542 595 L 526 561 L 526 520 L 548 621 L 510 662 L 457 690 L 359 680 L 280 652 L 249 567 L 274 488 L 321 410 L 387 340 L 274 328 L 164 315 L 66.1 239 L 25.2 145 L 56.7 59.9 L 120 3.15 L 224 -15.8 L 343 -3.15 L 450 25.2 L 539 72.4 L 598 142 L 636 214 L 646 280 L 639 321 L 621 375 L 728 491 L 728 463 L 696 428 L 570 350 L 472 309 L 384 265 L 340 192 L 343 154 L 372 110'},
+'#': {w:926, d:'M 410 743 L 167 40.9 M 693 737 L 460 37.8 M 94.5 469 L 825 472 M 12.6 192 L 753 192'},
+'%': {w:548, d:'M 189 649 L 120 621 L 66.1 558 L 66.1 479 L 104 444 L 164 450 L 211 495 L 243 545 L 246 602 L 233 633 L 205 646 L 271 624 L 413 630 L 476 662 L 410 573 L 211 280 L 56.7 18.9 M 306 202 L 261 132 L 255 59.9 L 296 22 L 340 22 L 400 66.1 L 432 113 L 441 202 L 410 233 L 353 236 L 306 202'},
+'(': {w:447, d:'M 501 684 L 293 573 L 148 444 L 72.5 315 L 25.2 154 L 18.9 18.9 L 37.8 -97.6 L 66.1 -161'},
+')': {w:617, d:'M 372 684 L 428 554 L 425 362 L 356 158 L 246 9.45 L 139 -75.6 L 41 -123 L -50.4 -158'},
+'-': {w:444, d:'M 161 236 L 387 243'},
+':': {w:246, d:'M 195 252 L 183 230 M 139 63 L 126 40.9'},
+';': {w:224, d:'M 189 252 L 173 230 M 101 59.9 L 120 40.9 L 117 18.9 L 101 -9.45 L 31.5 -101'},
+'/': {w:564, d:'M 482 655 L 252 356 L 126 183 L 25.2 22'},
+'+': {w:731, d:'M 101 243 L 586 243 M 435 432 L 249 15.8'},
+'=': {w:646, d:'M 189 318 L 573 328 M 145 139 L 189 154 L 548 151'},
+'*': {w:762, d:'M 236 602 L 243 598 L 400 261 M 457 617 L 186 271 M 554 438 L 117 428'},
+'~': {w:491, d:'M 161 463 L 195 498 L 246 498 L 321 472 L 384 447 L 406 469 L 422 482'},
+'_': {w:709, d:'M -28.4 -34.6 L 674 -34.6'},
+// --- Brackets & Braces ---
+'[': {w:526, d:'M 570 652 L 444 652 L 318 469 L 180 236 L 94.5 75.6 L 69.3 12.6 L 202 12.6'},
+']': {w:510, d:'M 428 655 L 554 649 L 479 476 L 362 277 L 280 148 L 186 12.6 L 53.5 18.9'},
+'{': {w:488, d:'M 432 668 L 299 643 L 233 545 L 227 444 L 189 384 L 132 369 L 63 362 L 126 328 L 154 274 L 123 208 L 75.6 158 L 34.6 72.4 L 72.5 -3.15 L 113 -18.9 L 158 -28.4'},
+'}': {w:558, d:'M 372 674 L 447 665 L 482 627 L 472 567 L 432 510 L 397 444 L 369 384 L 419 362 L 482 356 L 375 315 L 324 274 L 302 227 L 293 145 L 255 75.6 L 161 -18.9 L 120 -28.4 L 28.4 -31.5'},
+'<': {w:450, d:'M 391 561 L 101 277 L 167 186 L 208 132 L 252 59.9'},
+'>': {w:472, d:'M 252 554 L 328 438 L 391 375 L 293 280 L 173 164 L 85 78.8'},
+'\\': {w:381, d:'M 44.1 652 L 148 447 L 214 277 L 258 161 L 309 28.4'},
+'|': {w:296, d:'M 132 684 L 126 -28.4'},
+'`': {w:406, d:'M 72.5 523 L 202 444'},
+// --- Arrows (single-stroke: head top → tip → head bottom → tip → shaft end) ---
+'\u2190': {w:550, d:'M 150 450 L 50 350 L 150 250 L 50 350 L 500 350'},
+'\u2192': {w:550, d:'M 400 250 L 500 350 L 400 450 L 500 350 L 50 350'},
+'\u2191': {w:400, d:'M 100 200 L 200 100 L 300 200 L 200 100 L 200 600'},
+'\u2193': {w:400, d:'M 100 500 L 200 600 L 300 500 L 200 600 L 200 100'}
 };
 
 // ============================================
@@ -233,6 +282,17 @@ for (const [ch, [idxA, idxB]] of Object.entries(ALLURE_MERGE)) {
     FONT_ALLURE[ch].strokes = [merged, ...origStrokes.slice(2)];
 }
 
+// Allure P: merge stem (stroke 0) + bowl (stroke 1) into one continuous cursive stroke
+// Reverse the stem (so pen goes baseline→top), skip bowl's initial leftward dip, bridge at top
+if (FONT_ALLURE['P']) {
+    const origP = parseSvgPath(EMS_ALLURE['P'].d);
+    if (origP.length >= 2) {
+        const stemUp = [...origP[0]].reverse(); // reverse stem: baseline → top
+        const bowlTrimmed = origP[1].slice(3);  // skip leftward dip (first 3 pts)
+        FONT_ALLURE['P'].strokes = [[...stemUp, ...bowlTrimmed]];
+    }
+}
+
 
 const FONT_SCRIPT = {};
 for (const [char, data] of Object.entries(HERSHEY_SCRIPT)) {
@@ -332,6 +392,34 @@ for (const [ch, [idxA, idxB]] of Object.entries(SCRIPT_MERGE)) {
     }
 }
 
+// Share punctuation across all fonts — both use Y-up but different baseline positions.
+// Allure: baseline≈9, x-height≈356. Script: baseline≈-297, x-height≈0.
+// Affine transform: map Allure baseline→Script baseline, Allure x-height→Script x-height.
+// Compute Script Y-range from letters only BEFORE adding punct so scaling isn't distorted.
+const SCRIPT_LETTER_YRANGE = computeFontYRange(FONT_SCRIPT);
+{
+    // Measure 'e' in each font: bottom = baseline, top = x-height
+    let aBase = Infinity, aTop = -Infinity;
+    for (const s of FONT_ALLURE['e'].strokes) for (const [,y] of s) { aBase = Math.min(aBase, y); aTop = Math.max(aTop, y); }
+    let sBase = Infinity, sTop = -Infinity;
+    for (const s of FONT_SCRIPT['e'].strokes) for (const [,y] of s) { sBase = Math.min(sBase, y); sTop = Math.max(sTop, y); }
+    // Scale: Script x-height span / Allure x-height span (both positive, no flip)
+    const yScale = (sTop - sBase) / (aTop - aBase);
+    const wScale = yScale;
+
+    for (const [ch, glyph] of Object.entries(FONT_ALLURE)) {
+        if (ch >= 'A' && ch <= 'Z') continue;
+        if (ch >= 'a' && ch <= 'z') continue;
+        if (ch === ' ') continue;
+        if (FONT_SCRIPT[ch]) continue;
+        // Affine: newY = scriptBase + (y - allureBase) * yScale
+        const newStrokes = glyph.strokes.map(stroke =>
+            stroke.map(([x, y]) => [x * wScale, sBase + (y - aBase) * yScale])
+        );
+        FONT_SCRIPT[ch] = { width: glyph.width * wScale, strokes: newStrokes };
+    }
+}
+
 function computeFontYRange(font) {
     let minY = Infinity, maxY = -Infinity;
     for (const glyph of Object.values(font)) {
@@ -344,7 +432,7 @@ function computeFontYRange(font) {
 
 const FONTS = {
     Allure: { glyphs: FONT_ALLURE, yRange: computeFontYRange(FONT_ALLURE), xHeight: computeXHeightRange(FONT_ALLURE) },
-    Script: { glyphs: FONT_SCRIPT, yRange: computeFontYRange(FONT_SCRIPT), xHeight: computeXHeightRange(FONT_SCRIPT) }
+    Script: { glyphs: FONT_SCRIPT, yRange: SCRIPT_LETTER_YRANGE, xHeight: computeXHeightRange(FONT_SCRIPT) }
 };
 
 // ============================================
@@ -600,7 +688,47 @@ function deriveShape(seed, fontStyle) {
         ? 1.0
         : map(segments, 12, 20, 0.88, 1.1);
 
-    return { rotation, slant, loopWidth, loopHeight };
+    // Hand personality — derived from decPairs, defines the "writer" for this seed.
+    // Uses Snowfro's hash values that aren't consumed by type/color selection.
+    const hand = deriveHandPersonality(decPairs);
+
+    return { rotation, slant, loopWidth, loopHeight, hand };
+}
+
+// ============================================
+// HAND PERSONALITY — each seed is a different writer
+// ============================================
+
+// Per-seed personality from Snowfro's hash. Defines the envelope for letter variance.
+// Uses decPairs indices that overlap with wave Y values — these ARE the wave,
+// so the "hand" that writes the word IS the wave that shaped it.
+function deriveHandPersonality(decPairs) {
+    return {
+        // How much this hand varies stroke to stroke (0.3=precise, 1.0=loose)
+        varianceIntensity: map((decPairs[3] ^ decPairs[24]) & 0xFF, 0, 255, 0.3, 1.0),
+        // Y-dominant vs X-dominant variance (real handwriting breathes more vertically)
+        yBias: map((decPairs[5] ^ decPairs[15]) & 0xFF, 0, 255, 0.6, 0.85),
+        // Coherence: do all points in a letter shift together (swaying) or independently (trembling)?
+        coherence: map((decPairs[7] ^ decPairs[19]) & 0xFF, 0, 255, 0.3, 0.8),
+        // Scale tendency — this hand writes slightly bigger or smaller
+        scaleTendency: map((decPairs[9] ^ decPairs[21]) & 0xFF, 0, 255, 0.98, 1.02),
+    };
+}
+
+// Per-letter deterministic RNG using Snowfro's xorshift pattern.
+// Each letter instance gets a unique but reproducible sequence.
+function letterVarianceRng(seed, letterIndex, charCode) {
+    // Combine seed, position, and character into a unique starting state
+    // using Knuth multiplicative hashing to avoid correlation
+    let s = (seed >>> 0) ^ 0xDEADBEEF;           // Snowfro's magic constant
+    s = (s ^ (letterIndex * 2654435761)) >>> 0;    // position hash
+    s = (s ^ (charCode * 2246822519)) >>> 0;       // character hash
+    // Snowfro's xorshift — same three operations as generateHash
+    s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s = s >>> 0;
+    return function() {
+        s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s = s >>> 0;
+        return (s % 10000) / 10000;
+    };
 }
 
 // ============================================
@@ -610,15 +738,37 @@ function deriveShape(seed, fontStyle) {
 function transformStroke(stroke, params) {
     const { glyphCenterX, glyphCenterY, loopWidth, loopHeight,
             xOffset, scale, baselineY, slant, letterCenterX, letterCenterY,
-            scaleVar, cosR, sinR, yWobble } = params;
+            scaleVar, cosR, sinR, yWobble, variance } = params;
     const strokeLen = stroke.length;
     return stroke.map(([fx, fy], ptIdx) => {
         const t = strokeLen <= 2 ? 0 : ptIdx / (strokeLen - 1);
         const blend = Math.sin(t * Math.PI);
         const lw = 1 + (loopWidth - 1) * blend;
         const lh = 1 + (loopHeight - 1) * blend;
-        const sx = glyphCenterX + (fx - glyphCenterX) * lw;
-        const sy = glyphCenterY + (fy - glyphCenterY) * lh;
+        let sx = glyphCenterX + (fx - glyphCenterX) * lw;
+        let sy = glyphCenterY + (fy - glyphCenterY) * lh;
+
+        // Per-control-point variance — the hand's breath
+        // Applied in font-coordinate space so it scales naturally with the letter.
+        // sin^2 envelope protects endpoints for clean connections.
+        if (variance && strokeLen > 2) {
+            const env = Math.sin(t * Math.PI);
+            const env2 = env * env; // sharper falloff near endpoints
+            const h = variance.hand;
+            const intensity = h.varianceIntensity;
+            // Pull deterministic per-point random values from the letter's RNG
+            const r1 = variance.lRng();
+            const r2 = variance.lRng();
+            // Blend coherent (whole letter shifts) with independent (per-point wander)
+            const yDisp = h.coherence * variance.letterYDir * variance.letterYMag
+                        + (1 - h.coherence) * (r1 * 2 - 1);
+            const xDisp = h.coherence * variance.letterXDir * variance.letterXMag
+                        + (1 - h.coherence) * (r2 * 2 - 1);
+            // Max displacement in font units (x-height body is ~350 units)
+            sy += yDisp * 8 * intensity * h.yBias * env2;
+            sx += xDisp * 5 * intensity * (1.5 - h.yBias) * env2;
+        }
+
         let cx = xOffset + sx * scale;
         let cy = baselineY - sy * scale;
         cx += (baselineY - cy) * slant;
@@ -690,6 +840,7 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
     const FONT = getFontGlyphs(config.fontStyle);
     const FONT_Y_RANGE = getFontYRange(config.fontStyle);
     const allPaths = [];
+    let currentWordPrimary = [];   // primary strokes for current word — concatenated at word boundary
     let currentWordSecondary = []; // secondary strokes for the current word
 
     const isBoldType = type === 'Bold' || type === 'Pipe';
@@ -749,18 +900,54 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
     let firstWordDone = false;
     let firstWordPrimaryCount = 0;
 
+    // Word-path concatenation: join all primary strokes per word into one continuous path.
+    // 3 collinear bridge points between letters prevent Catmull-Rom overshoot.
+    // This creates one rainbow rope per word instead of separate strokes per letter.
+    // Disabled via config.wordPath === false for comparison/debugging.
+    const useWordPath = config.wordPath !== false;
+    function flushWord() {
+        if (!useWordPath) {
+            // Legacy mode: push each letter's primary as a separate path
+            allPaths.push(...currentWordPrimary);
+        } else if (currentWordPrimary.length === 1) {
+            allPaths.push(currentWordPrimary[0]);
+        } else if (currentWordPrimary.length > 1) {
+            const wordPath = [...currentWordPrimary[0]];
+            for (let i = 1; i < currentWordPrimary.length; i++) {
+                const prev = wordPath[wordPath.length - 1];
+                const next = currentWordPrimary[i][0];
+                // 3 collinear bridge points evenly spaced from exit to entry
+                for (let b = 1; b <= 3; b++) {
+                    const t = b / 4;
+                    wordPath.push([
+                        prev[0] + (next[0] - prev[0]) * t,
+                        prev[1] + (next[1] - prev[1]) * t
+                    ]);
+                }
+                wordPath.push(...currentWordPrimary[i]);
+            }
+            allPaths.push(wordPath);
+        }
+        currentWordPrimary = [];
+        // Flush secondary strokes (sorted L→R)
+        currentWordSecondary.sort((a, b) => {
+            const minXa = Math.min(...a.map(p => p[0]));
+            const minXb = Math.min(...b.map(p => p[0]));
+            return minXa - minXb;
+        });
+        allPaths.push(...currentWordSecondary);
+        currentWordSecondary = [];
+    }
+
+    // Punctuation breaks word-path — rendered standalone, not connected to letters
+    const PUNCT = new Set('.,?!\'"@$&#%()-:;/+=*~_0123456789[]{}<>\\|`\u2190\u2191\u2192\u2193');
+
     for (const char of text) {
         const glyph = FONT[char];
         if (!glyph) continue;
         if (char === ' ') {
-            // Flush this word's secondary strokes (sorted L→R) before starting next word
-            currentWordSecondary.sort((a, b) => {
-                const minXa = Math.min(...a.map(p => p[0]));
-                const minXb = Math.min(...b.map(p => p[0]));
-                return minXa - minXb;
-            });
-            allPaths.push(...currentWordSecondary);
-            currentWordSecondary = [];
+            // Flush word: concatenate primaries into one path, then push secondaries
+            flushWord();
             xOffset += glyph.width * scale;
             if (!firstWordDone) {
                 firstWordDone = true;
@@ -768,17 +955,36 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
             }
             continue;
         }
+        if (PUNCT.has(char)) {
+            // Flush any connected letters before this punct
+            flushWord();
+        }
 
-        // Per-letter variation — seed-driven, natural handwriting feel
+        // Per-letter variation — seed-driven, each letter drawn by the same hand but not identical.
+        // Uses Snowfro's hash (decPairs) for coarse variation, letterVarianceRng for fine grain.
         const li = letterIdx;
+        const hand = config.hand;
+        const lRng = letterVarianceRng(config.seed, li, char.charCodeAt(0));
+
+        // Coarse per-letter variation (Snowfro's decPairs pattern)
         const yWobble = map(decPairs[li % 10], 0, 255, -14, 14) * scale;
         const baseRot = config.rotation || 0.03;
         const jitter = map(decPairs[10 + (li % 10)], 0, 255, -0.02, 0.02);
         const rotation = baseRot + jitter;
-        const scaleVar = map(decPairs[20 + (li % 10)], 0, 255, 0.95, 1.05);
-        // Per-letter loop shape jitter
+        const scaleVar = map(decPairs[20 + (li % 10)], 0, 255, 0.95, 1.05)
+                       * (hand ? hand.scaleTendency : 1);
         const lwJitter = map(decPairs[(li * 3 + 5) % 32], 0, 255, -0.04, 0.04);
         const lhJitter = map(decPairs[(li * 3 + 7) % 32], 0, 255, -0.04, 0.04);
+
+        // Fine per-letter variance — coherent direction for this letter instance
+        const variance = hand ? {
+            hand,
+            lRng,
+            letterYDir: lRng() > 0.5 ? 1 : -1,
+            letterXDir: lRng() > 0.5 ? 1 : -1,
+            letterYMag: lRng(),
+            letterXMag: lRng(),
+        } : null;
 
         const letterCenterX = xOffset + (glyph.width / 2) * scale;
         const letterCenterY = baselineY - (FONT_Y_RANGE * 0.15) * scale;
@@ -797,12 +1003,24 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
             const hasExplicitEntry = fontSec && char in fontSec;
             const explicitSec = hasExplicitEntry && fontSec[char].has(si);
             const isSecondary = isThinMode ? false : hasExplicitEntry ? explicitSec : (isDot(stroke) || isCrossbar(stroke));
+            // Reset lRng for each stroke so variance is deterministic per stroke
+            const strokeVariance = variance ? {
+                ...variance,
+                lRng: letterVarianceRng(config.seed, li * 100 + si, char.charCodeAt(0))
+            } : null;
+            if (strokeVariance) {
+                strokeVariance.letterYDir = variance.letterYDir;
+                strokeVariance.letterXDir = variance.letterXDir;
+                strokeVariance.letterYMag = variance.letterYMag;
+                strokeVariance.letterXMag = variance.letterXMag;
+            }
             const transformedPath = transformStroke(stroke, {
                 glyphCenterX, glyphCenterY,
                 loopWidth: config.loopWidth + lwJitter,
                 loopHeight: config.loopHeight + lhJitter,
                 xOffset, scale, baselineY, slant: config.slant,
-                letterCenterX, letterCenterY, scaleVar, cosR, sinR, yWobble
+                letterCenterX, letterCenterY, scaleVar, cosR, sinR, yWobble,
+                variance: strokeVariance
             });
             if (!isSecondary) {
                 for (const [, cy] of transformedPath) { minY = Math.min(minY, cy); maxY = Math.max(maxY, cy); }
@@ -813,23 +1031,22 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
                 if (isUpperCase) allPaths.push(transformedPath);
                 else currentWordSecondary.push(transformedPath);
             } else {
-                allPaths.push(transformedPath);
+                // Collect primaries for word-path concatenation
+                currentWordPrimary.push(transformedPath);
             }
         }
         const isUpper = char >= 'A' && char <= 'Z';
         const boldExtra = isBoldType ? glyph.width * (isUpper ? 0.08 : 0.2) : 0;
         xOffset += (glyph.width + boldExtra) * scale;
         letterIdx++;
+        if (PUNCT.has(char)) {
+            // Flush punct so it doesn't concatenate with the next letter
+            flushWord();
+        }
     }
 
-    // Flush last word's secondary strokes
-    currentWordSecondary.sort((a, b) => {
-        const minXa = Math.min(...a.map(p => p[0]));
-        const minXb = Math.min(...b.map(p => p[0]));
-        return minXa - minXb;
-    });
-    allPaths.push(...currentWordSecondary);
-
+    // Flush last word
+    flushWord();
     if (!firstWordDone) firstWordPrimaryCount = allPaths.length;
 
     // Floor: pen thickness at least what a body-height (x-height) word produces.
