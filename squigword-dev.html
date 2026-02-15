@@ -82,6 +82,8 @@
         .slider-row.disabled { opacity: 0.3; pointer-events: none; }
         .shape-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .shape-header .field-label { margin-bottom: 0; }
+        .btn-word { padding: 5px 10px; font-size: 13px; }
+        .btn-letter { width: 30px; height: 30px; padding: 0; font-size: 13px; font-weight: 600; text-align: center; font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
 <body>
@@ -111,6 +113,15 @@
                         <button class="icon-btn" id="randSeedBtn" title="Random seed">&#8635;</button>
                     </div>
                 </div>
+            </div>
+            <div class="field">
+                <label class="field-label">WORDS</label>
+                <div class="btn-row" id="wordBtns" style="margin-bottom:6px;"></div>
+            </div>
+            <div class="field">
+                <label class="field-label">ALPHABET</label>
+                <div class="btn-row" id="alphaRow" style="margin-bottom:4px;"></div>
+                <div class="btn-row" id="alphaUpperRow"></div>
             </div>
             <div class="field">
                 <label class="field-label">TYPE</label>
@@ -735,6 +746,48 @@ function setup() {
         prevText = state.text;
         render();
     });
+
+    // Word buttons — one-touch test words
+    const quickWords = [
+        'hello','squig','jazz','rhythm','zigzag','can','Squiggles','Wiggly','Groovy',
+        'Noodle','Twisty','Curly','Funky','Cosmic','Dreamy','Sparkle','Wobble','Jiggle',
+        'Peppy','Zippy','Quirky','Bubbles','Slinky','Jazzy','Doodle','Shimmer'
+    ];
+    const wordBtns = document.getElementById('wordBtns');
+    quickWords.forEach(w => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-word';
+        btn.textContent = w;
+        btn.onclick = () => {
+            state.text = w;
+            document.getElementById('textInput').value = w;
+            prevText = w;
+            state.prevParticleCount = 0;
+            render();
+        };
+        wordBtns.appendChild(btn);
+    });
+
+    // Alphabet buttons — individual letters
+    const alphaRow = document.getElementById('alphaRow');
+    const alphaUpperRow = document.getElementById('alphaUpperRow');
+    for (let i = 0; i < 26; i++) {
+        const lower = String.fromCharCode(97 + i);
+        const upper = String.fromCharCode(65 + i);
+        [[ lower, alphaRow ], [ upper, alphaUpperRow ]].forEach(([ch, row]) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-letter';
+            btn.textContent = ch;
+            btn.onclick = () => {
+                state.text = ch;
+                document.getElementById('textInput').value = ch;
+                prevText = ch;
+                state.prevParticleCount = 0;
+                startDrawAnimation();
+            };
+            row.appendChild(btn);
+        });
+    }
 
     // Shape sliders — manual move disables Auto Shape
     function disableAutoShape() {

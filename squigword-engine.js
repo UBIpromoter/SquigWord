@@ -864,7 +864,9 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
     const isBoldType = type === 'Bold' || type === 'Pipe';
     let totalFontWidth = 0;
     for (const char of text) {
-        const glyph = FONT[char];
+        // Underscore = phantom space: use space width for layout
+        const effectiveChar = char === '_' ? ' ' : char;
+        const glyph = FONT[effectiveChar];
         if (!glyph) continue;
         const isUpper = char >= 'A' && char <= 'Z';
         const boldSpacing = isBoldType ? (isUpper ? 0.08 : 0.2) : 0;
@@ -872,7 +874,7 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
     }
     if (totalFontWidth <= 0) return { paths: [], letterHeight: 0, firstWordPrimaryCount: 0 };
 
-    const charCount = [...text].filter(c => c !== ' ').length;
+    const charCount = [...text].filter(c => c !== ' ' && c !== '_').length;
     const widthTarget = charCount <= 1 ? 0.50 : charCount <= 2 ? 0.65 : charCount <= 3 ? 0.75 : 0.88;
     const maxWidth = canvasWidth * widthTarget;
 
@@ -958,7 +960,7 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
     }
 
     // Punctuation breaks word-path — rendered standalone, not connected to letters
-    const PUNCT = new Set('.,?!\'"@$&#%()-:;/+=*~_0123456789[]{}<>\\|`\u2190\u2191\u2192\u2193');
+    const PUNCT = new Set('.,?!\'"@$&#%()-:;/+=*~0123456789[]{}<>\\|`\u2190\u2191\u2192\u2193');
 
     for (const char of text) {
         const glyph = FONT[char];
@@ -971,6 +973,13 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
                 firstWordDone = true;
                 firstWordPrimaryCount = allPaths.length;
             }
+            continue;
+        }
+        // Phantom space: underscore advances cursor without breaking the word path.
+        // The rainbow rope bridges across the gap via collinear bridge points.
+        if (char === '_') {
+            const spaceGlyph = FONT[' '];
+            if (spaceGlyph) xOffset += spaceGlyph.width * scale;
             continue;
         }
         if (PUNCT.has(char)) {
