@@ -801,20 +801,42 @@ function transformStroke(stroke, params) {
 }
 
 function layoutText(text, canvasWidth, canvasHeight, type, config) {
-    const words = text.trim().split(/\s+/);
+    // For line-breaking, treat underscores as spaces — find the split point on
+    // a space-normalized copy, then split the ORIGINAL text at that character position
+    // so each line keeps its internal underscores (word-path stays connected).
+    const normalized = text.trim().replace(/_/g, ' ');
+    const words = normalized.split(/\s+/);
     const totalChars = words.join('').length;
     if (words.length >= 2 && totalChars > 10) {
-        // Split at word boundary nearest the middle
+        // Find best split word index
         let bestSplit = 1, bestDiff = Infinity;
-        const totalLen = text.trim().length;
+        const totalLen = normalized.length;
         let runLen = 0;
         for (let i = 0; i < words.length - 1; i++) {
             runLen += words[i].length + 1;
             const diff = Math.abs(runLen - totalLen / 2);
             if (diff < bestDiff) { bestDiff = diff; bestSplit = i + 1; }
         }
-        const line1 = words.slice(0, bestSplit).join(' ');
-        const line2 = words.slice(bestSplit).join(' ');
+        // Find the character position of the split in the original text
+        // Walk through original text counting word boundaries (spaces or underscores)
+        const trimmed = text.trim();
+        let wordIdx = 0, splitPos = 0;
+        let i = 0;
+        while (i < trimmed.length && wordIdx < bestSplit) {
+            if (trimmed[i] === ' ' || trimmed[i] === '_') {
+                wordIdx++;
+                // Skip consecutive separators
+                while (i < trimmed.length && (trimmed[i] === ' ' || trimmed[i] === '_')) i++;
+            } else {
+                i++;
+            }
+        }
+        splitPos = i;
+        // Back up past any separator to trim the break point
+        let endLine1 = splitPos - 1;
+        while (endLine1 > 0 && (trimmed[endLine1] === ' ' || trimmed[endLine1] === '_')) endLine1--;
+        const line1 = trimmed.slice(0, endLine1 + 1);
+        const line2 = trimmed.slice(splitPos);
 
         // Build both lines at full canvas height to compute natural scales
         const r1 = layoutLine(line1, canvasWidth, canvasHeight, type, config);
@@ -849,7 +871,16 @@ function layoutText(text, canvasWidth, canvasHeight, type, config) {
 
         const allPaths = [...r1f.paths, ...r2f.paths];
         const letterHeight = Math.max(r1f.letterHeight, r2f.letterHeight);
-        return { paths: allPaths, letterHeight, firstWordPrimaryCount: r1f.firstWordPrimaryCount };
+
+        // If line 1 had no real spaces (all underscores), the "first word" for color
+        // spread continues into line 2. This keeps the rainbow range spanning
+        // the entire underscore-connected phrase across both lines.
+        let fwpc = r1f.firstWordPrimaryCount;
+        if (fwpc === r1f.paths.length) {
+            // Line 1's first word covered all its paths — extend into line 2
+            fwpc += r2f.firstWordPrimaryCount;
+        }
+        return { paths: allPaths, letterHeight, firstWordPrimaryCount: fwpc };
     }
     return layoutLine(text, canvasWidth, canvasHeight, type, config);
 }
@@ -884,7 +915,7 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
     const effectiveXHeight = xHeightRange * config.loopHeight;
 
     // Also compute full Y range of first word for safety clamp
-    const firstWord = text.split(' ')[0];
+    const firstWord = text.split(/[\s_]/)[0];
     let wordMinFY = Infinity, wordMaxFY = -Infinity;
     for (const char of firstWord) {
         const glyph = FONT[char];
@@ -963,6 +994,15 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
     const PUNCT = new Set('.,?!\'"@$&#%()-:;/+=*~0123456789[]{}<>\\|`\u2190\u2191\u2192\u2193');
 
     for (const char of text) {
+        // Phantom space: underscore creates a visual gap (like a space) but does NOT
+        // mark a word boundary — the color counter flows continuously across all paths.
+        // Must check before glyph lookup — some fonts lack a '_' glyph.
+        if (char === '_') {
+            flushWord();
+            const spaceGlyph = FONT[' '];
+            if (spaceGlyph) xOffset += spaceGlyph.width * scale;
+            continue;
+        }
         const glyph = FONT[char];
         if (!glyph) continue;
         if (char === ' ') {
@@ -973,13 +1013,6 @@ function layoutLine(text, canvasWidth, canvasHeight, type, config, forceScale) {
                 firstWordDone = true;
                 firstWordPrimaryCount = allPaths.length;
             }
-            continue;
-        }
-        // Phantom space: underscore advances cursor without breaking the word path.
-        // The rainbow rope bridges across the gap via collinear bridge points.
-        if (char === '_') {
-            const spaceGlyph = FONT[' '];
-            if (spaceGlyph) xOffset += spaceGlyph.width * scale;
             continue;
         }
         if (PUNCT.has(char)) {

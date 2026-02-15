@@ -104,6 +104,7 @@
                         <button class="icon-btn" id="randWordBtn" title="Random word">&#8635;</button>
                         <button class="icon-btn" id="alphaLowerBtn" title="Cycle lowercase abcd→efgh→..." style="font-size:12px;font-weight:600;">az</button>
                         <button class="icon-btn" id="alphaUpperBtn" title="Cycle uppercase ABCD→EFGH→..." style="font-size:12px;font-weight:600;">AZ</button>
+                        <button class="icon-btn" id="phantomToggle" title="Toggle spaces ↔ underscores (phantom space)" style="font-size:14px;">_</button>
                     </div>
                 </div>
                 <div class="field">
@@ -724,6 +725,17 @@ function setup() {
         render();
     });
 
+    // Phantom toggle — swap spaces ↔ underscores
+    document.getElementById('phantomToggle').addEventListener('click', () => {
+        const input = document.getElementById('textInput');
+        const hasSpaces = input.value.includes(' ');
+        input.value = hasSpaces ? input.value.replace(/ /g, '_') : input.value.replace(/_/g, ' ');
+        state.text = input.value;
+        prevText = state.text;
+        state.prevParticleCount = 0;
+        render();
+    });
+
     // Alphabet chunker — cycle through letters in groups of 4, wrap produces different groupings
     let alphaLowerIdx = 0;
     let alphaUpperIdx = 0;
@@ -749,9 +761,11 @@ function setup() {
 
     // Word buttons — one-touch test words
     const quickWords = [
-        'hello','squig','jazz','rhythm','zigzag','can','Squiggles','Wiggly','Groovy',
-        'Noodle','Twisty','Curly','Funky','Cosmic','Dreamy','Sparkle','Wobble','Jiggle',
-        'Peppy','Zippy','Quirky','Bubbles','Slinky','Jazzy','Doodle','Shimmer'
+        'hello','squig','jazz','rhythm','zigzag','can',
+        'So Cool','Big Mood','No Way','Oh Snap','Too Fun',
+        'Squiggles','Wiggly','Groovy','Noodle','Twisty','Curly',
+        'Funky Town','Cosmic Dust','Dreamy Vibes','Good Times',
+        'Sparkle','Wobble','Jiggle','Bubbles','Slinky','Jazzy','Doodle'
     ];
     const wordBtns = document.getElementById('wordBtns');
     quickWords.forEach(w => {
