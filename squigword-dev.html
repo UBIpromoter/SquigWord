@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SquigWord Dev</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d0f;
+            --card: #161619;
+            --input: #1e1e22;
+            --text: #ffffff;
+            --dim: #9ca3af;
+            --muted: #6b7280;
+            --accent: #a855f7;
+            --glow: rgba(168, 85, 247, 0.2);
+            --border: rgba(255, 255, 255, 0.08);
+        }
+        .light-mode {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --input: #f0f0f2;
+            --text: #1a1a1a;
+            --dim: #4b5563;
+            --muted: #6b7280;
+            --accent: #7c3aed;
+            --glow: rgba(124, 58, 237, 0.15);
+            --border: rgba(0, 0, 0, 0.08);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { overflow-x: hidden; }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .app { max-width: 1100px; width: 100%; margin: 0 auto; padding: 12px 16px; display: flex; flex-direction: column; min-height: 100vh; }
+        .canvas-row { display: flex; gap: 10px; margin-bottom: 10px; flex-shrink: 0; align-items: center; }
+        .canvas-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 6px; position: relative; flex: 5; min-width: 0; }
+        .ref-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 6px; position: relative; flex: 3; min-width: 0; }
+        canvas { width: 100%; display: block; border-radius: 6px; cursor: pointer; }
+        .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; flex-shrink: 0; }
+        .field { margin-bottom: 14px; }
+        .field:last-child { margin-bottom: 0; }
+        .field-label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .field-row { display: flex; gap: 16px; margin-bottom: 14px; }
+        .flex-grow { flex: 1; min-width: 0; }
+        .input-group { display: flex; gap: 6px; align-items: center; }
+        input[type="text"], input[type="number"] { background: var(--input); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 16px; font-family: inherit; color: var(--text); outline: none; transition: border 0.15s; }
+        input:focus { border-color: var(--accent); }
+        input[type="text"] { flex: 1; min-width: 0; }
+        input[type="number"] { width: 100px; font-family: 'JetBrains Mono', monospace; text-align: center; }
+        .btn-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .btn { padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer; border: 1px solid var(--border); background: var(--input); color: var(--dim); transition: all 0.12s; white-space: nowrap; }
+        .btn:hover { background: var(--bg); color: var(--text); }
+        .btn.active { background: rgba(168, 85, 247, 0.35); border-color: rgba(168, 85, 247, 0.5); color: #e9d5ff; }
+        .light-mode .btn.active { background: rgba(124, 58, 237, 0.2); border-color: rgba(124, 58, 237, 0.4); color: #6d28d9; }
+        .btn.resolved { border-color: rgba(96, 165, 250, 0.6); color: var(--text); }
+        .light-mode .btn.resolved { border-color: rgba(59, 130, 246, 0.5); color: var(--text); }
+        .icon-btn { width: 38px; height: 38px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.15s; }
+        .icon-btn:hover { background: var(--glow); border-color: var(--accent); color: var(--text); }
+        .icon-btn.playing { background: var(--accent); color: white; }
+        .traits { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 14px; color: var(--muted); padding-top: 8px; }
+        .trait-val { font-weight: 600; color: var(--text); margin-right: 2px; }
+        .color-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; vertical-align: middle; }
+        .action-row { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
+        .toggle-row { display: flex; gap: 6px; width: 100%; padding-top: 8px; align-items: center; }
+        .speed-control { display: flex; align-items: center; gap: 6px; margin-left: 8px; }
+        .speed-control label { font-size: 11px; color: var(--muted); }
+        .speed-slider { width: 80px; height: 4px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
+        .speed-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+        .footer { text-align: center; padding: 8px; font-size: 12px; color: var(--muted); flex-shrink: 0; margin-top: auto; }
+        .shape-grid { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+        .slider-row { display: flex; align-items: center; gap: 8px; flex: 1 1 45%; min-width: 200px; }
+        .slider-row label { font-size: 11px; color: var(--dim); min-width: 52px; }
+        .slider-row input[type="range"] { flex: 1; height: 4px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
+        .slider-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+        .slider-val { font-size: 11px; color: var(--text); min-width: 36px; text-align: right; font-family: 'JetBrains Mono', monospace; }
+        .slider-row.disabled { opacity: 0.3; pointer-events: none; }
+        .shape-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .shape-header .field-label { margin-bottom: 0; }
+        .btn-word { padding: 5px 10px; font-size: 13px; }
+        .btn-letter { width: 30px; height: 30px; padding: 0; font-size: 13px; font-weight: 600; text-align: center; font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body>
+    <button onclick="location.reload()" style="position:fixed;bottom:12px;right:12px;z-index:99999;padding:8px 18px;font-size:15px;font-weight:600;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:8px;cursor:pointer;backdrop-filter:blur(12px);transition:all 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.22)';this.style.color='#fff'" onmouseout="this.style.background='rgba(255,255,255,0.12)';this.style.color='rgba(255,255,255,0.7)'">↻ Refresh</button>
+    <div class="app">
+        <div class="canvas-row">
+            <div class="canvas-wrap"><canvas id="canvas" width="1400" height="500"></canvas></div>
+            <div class="ref-wrap">
+                <canvas id="refCanvas" width="900" height="500"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="field-row">
+                <div class="field flex-grow">
+                    <label class="field-label">TEXT</label>
+                    <div class="input-group">
+                        <input type="text" id="textInput" value="Squiggles" maxlength="40" spellcheck="false">
+                        <button class="icon-btn" id="randWordBtn" title="Random word">&#8635;</button>
+                        <button class="icon-btn" id="alphaLowerBtn" title="Cycle lowercase abcd→efgh→..." style="font-size:12px;font-weight:600;">az</button>
+                        <button class="icon-btn" id="alphaUpperBtn" title="Cycle uppercase ABCD→EFGH→..." style="font-size:12px;font-weight:600;">AZ</button>
+                        <button class="icon-btn" id="phantomToggle" title="Toggle spaces ↔ underscores (phantom space)" style="font-size:14px;">_</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="field-label">SEED</label>
+                    <div class="input-group">
+                        <input type="number" id="seedInput" value="42">
+                        <button class="icon-btn" id="randSeedBtn" title="Random seed">&#8635;</button>
+                    </div>
+                </div>
+            </div>
+            <div class="field">
+                <label class="field-label">WORDS</label>
+                <div class="btn-row" id="wordBtns" style="margin-bottom:6px;"></div>
+            </div>
+            <div class="field">
+                <label class="field-label">ALPHABET</label>
+                <div class="btn-row" id="alphaRow" style="margin-bottom:4px;"></div>
+                <div class="btn-row" id="alphaUpperRow"></div>
+            </div>
+            <div class="field">
+                <label class="field-label">TYPE</label>
+                <div class="btn-row" id="typeBtns"></div>
+            </div>
+            <div class="field">
+                <label class="field-label">FONT</label>
+                <div class="btn-row" id="fontBtns"></div>
+            </div>
+            <div class="field">
+                <div class="shape-header">
+                    <label class="field-label">SHAPE</label>
+                    <button class="icon-btn" id="randomizeBtn" title="Randomize shape" style="width:28px;height:28px;font-size:13px;">&#9733;</button>
+                    <button class="icon-btn" id="randomizeAllBtn" title="Randomize shape + seed" style="width:28px;height:28px;font-size:13px;">&#9889;</button>
+                </div>
+                <div class="shape-grid">
+                    <div class="slider-row">
+                        <label>Rotation</label>
+                        <input type="range" id="rotationSlider" min="-0.0873" max="0.1745" step="0.002" value="0.03">
+                        <span class="slider-val" id="rotationVal">1.7&deg;</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Slant</label>
+                        <input type="range" id="slantSlider" min="-0.1745" max="0.1745" step="0.005" value="0">
+                        <span class="slider-val" id="slantVal">0&deg;</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Swell</label>
+                        <input type="range" id="loopWidthSlider" min="0.75" max="1.2" step="0.02" value="1.0">
+                        <span class="slider-val" id="loopWidthVal">100%</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Rise</label>
+                        <input type="range" id="loopHeightSlider" min="0.75" max="1.1" step="0.02" value="1.0">
+                        <span class="slider-val" id="loopHeightVal">100%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="traits" id="traits"></div>
+            <div class="action-row">
+                <button class="icon-btn" id="modeToggle" title="Toggle light/dark">&#9728;</button>
+                <button class="icon-btn" id="animateBtn" title="Watch it draw">&#9654;</button>
+                <div class="speed-control">
+                    <label>Draw</label>
+                    <input type="range" class="speed-slider" id="speedSlider" min="1" max="20" value="5">
+                    <span class="slider-val" id="speedVal" style="min-width:24px;">5</span>
+                </div>
+                <div class="speed-control">
+                    <label>Type</label>
+                    <input type="range" class="speed-slider" id="typeSpeedSlider" min="5" max="80" value="25">
+                    <span class="slider-val" id="typeSpeedVal" style="min-width:24px;">25</span>
+                </div>
+                <button class="icon-btn" id="downloadBtn" title="Download PNG" style="margin-left:auto;">&#8595;</button>
+                <div class="toggle-row">
+                    <button class="btn active" id="autoShapeBtn" title="Derive rotation/slant/swell/rise from squiggle shape" style="font-size:12px; padding:6px 12px;">Auto Shape</button>
+                    <button class="btn" id="deferBtn" title="Toggle deferred dots/crosses (after word vs inline)" style="font-size:12px; padding:6px 12px;">Defer</button>
+                    <button class="btn" id="hyperBtn" title="Toggle Hyper Rainbow" style="font-size:12px; padding:6px 12px;">Hyper</button>
+                    <button class="btn active" id="connectedBtn" title="Toggle word-path concatenation (before/after)" style="font-size:12px; padding:6px 12px;">Connected</button>
+                </div>
+            </div>
+        </div>
+        <footer class="footer">inspired by <span class="credit">Snowfro</span> &middot; vibe-coded with &hearts; by <span class="credit">UBIpromoter</span> &amp; <span class="credit">Claude</span></footer>
+    </div>
+
+<script src="squigword-engine.js"></script>
+<script>
+// ============================================
+// CANVAS SETUP
+// ============================================
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const refCanvas = document.getElementById('refCanvas');
+const refCtx = refCanvas.getContext('2d');
+
+// ============================================
+// STATE (UI-specific)
+// ============================================
+
+const state = {
+    text: 'Squiggles',
+    seed: 42,
+    forceType: 'Auto',
+    fontStyle: 'Allure',
+    bgIndex: 10,
+    darkMode: true,
+    drawAnimating: false,
+    drawSpeed: 5,
+    typeSpeed: 25,
+    rotation: 0.03,
+    slant: 0,
+    loopWidth: 1.0,
+    loopHeight: 1.0,
+    autoShape: true,
+    forceHyper: null,
+    deferSecondary: true,
+    // Color cycling state
+    colorCycling: false,
+    cycleSpeed: 0.08,
+    colorOffset: 0,
+    cycleAnimFrame: null,
+    // Word-path toggle (before/after comparison)
+    wordPath: true,
+    // Type-to-draw animation (time-based)
+    typeDrawing: false,
+    typeDrawParticles: null,
+    typeDrawPrevLen: 0,
+    typeDrawProgress: 0,       // particles drawn so far in current letter
+    prevParticleCount: 0,
+};
+
+const TYPES = ['Auto', 'Normal', 'Bold', 'Slinky', 'Pipe', 'Fuzzy', 'Ribbed'];
+const FONT_NAMES = ['Allure', 'Script', 'Calligrapher'];
+
+// ============================================
+// CALLIGRAPHER.AI BRIDGE
+// ============================================
+
+let calligrapherStrokes = [{"0":138.1290283203125,"1":602.5,"2":1},{"0":188.4789276123047,"1":551.0114135742188,"2":0},{"0":185.58901977539062,"1":551.511962890625,"2":0},{"0":180.37094116210938,"1":553.2886962890625,"2":0},{"0":173.2721710205078,"1":556.6766967773438,"2":0},{"0":165.67355346679688,"1":562.0338134765625,"2":0},{"0":158.5814971923828,"1":568.6396484375,"2":0},{"0":153.0745086669922,"1":575.688720703125,"2":0},{"0":150.5880126953125,"1":582.5152587890625,"2":0},{"0":151.29969787597656,"1":588.2128295898438,"2":0},{"0":154.7899932861328,"1":592.7650756835938,"2":0},{"0":160.9597930908203,"1":596.4188842773438,"2":0},{"0":168.48150634765625,"1":599.640380859375,"2":0},{"0":175.75125122070312,"1":602.8487548828125,"2":0},{"0":181.47850036621094,"1":605.9586791992188,"2":0},{"0":184.37408447265625,"1":609.4961547851562,"2":0},{"0":183.78150939941406,"1":613.84912109375,"2":0},{"0":179.4901580810547,"1":618.9702758789062,"2":0},{"0":171.60630798339844,"1":624.724365234375,"2":0},{"0":161.49533081054688,"1":630.6362915039062,"2":0},{"0":150.8773956298828,"1":635.732666015625,"2":0},{"0":141.4844512939453,"1":639.2607421875,"2":0},{"0":134.616455078125,"1":640.9532470703125,"2":0},{"0":130.85118103027344,"1":641.1232299804688,"2":0},{"0":129.25283813476562,"1":640.7654418945312,"2":1},{"0":222.29135131835938,"1":603.719970703125,"2":0},{"0":219.93528747558594,"1":602.9692993164062,"2":0},{"0":215.72442626953125,"1":602.7046508789062,"2":0},{"0":210.23411560058594,"1":603.5592041015625,"2":0},{"0":203.84788513183594,"1":606.5048828125,"2":0},{"0":197.22998046875,"1":611.3029174804688,"2":0},{"0":191.25286865234375,"1":617.1134033203125,"2":0},{"0":186.7621307373047,"1":623.3038330078125,"2":0},{"0":184.67808532714844,"1":628.3048706054688,"2":0},{"0":185.60780334472656,"1":631.2725830078125,"2":0},{"0":189.4163818359375,"1":631.5665893554688,"2":0},{"0":195.79522705078125,"1":629.1654663085938,"2":0},{"0":204.05734252929688,"1":624.5648193359375,"2":0},{"0":213.15403747558594,"1":618.3084716796875,"2":0},{"0":221.79031372070312,"1":611.3673706054688,"2":0},{"0":229.18434143066406,"1":604.6307373046875,"2":0},{"0":234.6996307373047,"1":599.071044921875,"2":0},{"0":237.6368408203125,"1":595.9088745117188,"2":0},{"0":237.45985412597656,"1":596.4262084960938,"2":0},{"0":233.95767211914062,"1":601.0978393554688,"2":0},{"0":227.77513122558594,"1":609.7605590820312,"2":0},{"0":219.72596740722656,"1":621.7041015625,"2":0},{"0":210.79425048828125,"1":635.3770751953125,"2":0},{"0":202.07098388671875,"1":649.4232177734375,"2":0},{"0":194.2962646484375,"1":663.2301025390625,"2":0},{"0":188.46722412109375,"1":675.5150756835938,"2":0},{"0":184.8802032470703,"1":684.9646606445312,"2":0},{"0":183.38670349121094,"1":690.6952514648438,"2":0},{"0":184.09840393066406,"1":692.7188720703125,"2":0},{"0":186.9515380859375,"1":690.7215576171875,"2":0},{"0":191.86512756347656,"1":684.7849731445312,"2":0},{"0":198.6611328125,"1":675.4039916992188,"2":0},{"0":207.15492248535156,"1":663.8475952148438,"2":0},{"0":217.00343322753906,"1":651.3064575195312,"2":0},{"0":227.68136596679688,"1":638.5132446289062,"2":0},{"0":238.45980834960938,"1":626.36376953125,"2":0},{"0":248.74974060058594,"1":615.5113525390625,"2":0},{"0":257.90789794921875,"1":606.6631469726562,"2":0},{"0":265.2408752441406,"1":600.6103515625,"2":0},{"0":270.2599792480469,"1":597.8121337890625,"2":0},{"0":272.68170166015625,"1":598.0339965820312,"2":0},{"0":272.181640625,"1":601.2273559570312,"2":0},{"0":269.22125244140625,"1":606.7734985351562,"2":0},{"0":265.0301513671875,"1":613.5733032226562,"2":0},{"0":260.9882507324219,"1":620.525634765625,"2":0},{"0":258.5444030761719,"1":626.04833984375,"2":0},{"0":258.49639892578125,"1":629.1857299804688,"2":0},{"0":261.48944091796875,"1":629.7153930664062,"2":0},{"0":266.8235778808594,"1":627.9097290039062,"2":0},{"0":274.1064147949219,"1":623.824462890625,"2":0},{"0":282.4079284667969,"1":618.459716796875,"2":0},{"0":290.4460144042969,"1":612.4358520507812,"2":0},{"0":297.1966857910156,"1":607.235595703125,"2":0},{"0":301.645263671875,"1":603.7381591796875,"2":0},{"0":303.1759033203125,"1":602.9774780273438,"2":0},{"0":301.9063720703125,"1":605.501708984375,"2":0},{"0":298.9364318847656,"1":610.043701171875,"2":0},{"0":295.9787902832031,"1":615.3369750976562,"2":0},{"0":294.2296142578125,"1":619.7222900390625,"2":0},{"0":294.322021484375,"1":622.4356689453125,"2":0},{"0":296.64117431640625,"1":622.8858642578125,"2":0},{"0":300.9935302734375,"1":621.2310791015625,"2":0},{"0":307.08013916015625,"1":617.9454345703125,"2":0},{"0":314.11114501953125,"1":613.4459228515625,"2":0},{"0":321.47509765625,"1":608.4032592773438,"2":0},{"0":328.111083984375,"1":604.0537719726562,"2":0},{"0":332.3646240234375,"1":601.9342651367188,"2":0},{"0":333.5058898925781,"1":603.0657958984375,"2":0},{"0":331.7159423828125,"1":606.7971801757812,"2":0},{"0":328.348876953125,"1":612.0352783203125,"2":0},{"0":325.3790283203125,"1":616.9987182617188,"2":0},{"0":324.1205749511719,"1":620.3675537109375,"2":0},{"0":325.6340026855469,"1":621.38671875,"2":0},{"0":329.8962097167969,"1":620.0799560546875,"2":0},{"0":336.23931884765625,"1":617.1859130859375,"2":0},{"0":344.1307678222656,"1":612.5718383789062,"2":0},{"0":352.6527404785156,"1":607.3998413085938,"2":0},{"0":360.6510314941406,"1":602.4129638671875,"2":0},{"0":367.65081787109375,"1":598.6610717773438,"2":0},{"0":372.1712951660156,"1":597.1704711914062,"2":0},{"0":373.32196044921875,"1":597.8643188476562,"2":1},{"0":366.3535461425781,"1":585.2313842773438,"2":0},{"0":366.48785400390625,"1":584.4739379882812,"2":0},{"0":366.4698486328125,"1":583.8882446289062,"2":0},{"0":366.7669677734375,"1":583.855224609375,"2":1},{"0":384.0638122558594,"1":596.1176147460938,"2":0},{"0":386.2220764160156,"1":596.041015625,"2":0},{"0":388.8734130859375,"1":595.8727416992188,"2":0},{"0":391.0331115722656,"1":595.8876342773438,"2":0},{"0":391.89776611328125,"1":596.3283081054688,"2":0},{"0":391.2665100097656,"1":597.69677734375,"2":0},{"0":389.27960205078125,"1":599.7015991210938,"2":0},{"0":386.1868591308594,"1":602.516845703125,"2":0},{"0":382.57220458984375,"1":606.1281127929688,"2":0},{"0":379.4983215332031,"1":610.03076171875,"2":0},{"0":377.6665954589844,"1":613.2339477539062,"2":0},{"0":377.7952575683594,"1":615.1502075195312,"2":0},{"0":380.3055419921875,"1":615.1497802734375,"2":0},{"0":384.6326904296875,"1":613.0214233398438,"2":0},{"0":390.20233154296875,"1":609.3707885742188,"2":0},{"0":396.27978515625,"1":605.015869140625,"2":0},{"0":401.71533203125,"1":600.6463623046875,"2":0},{"0":405.54766845703125,"1":597.6923828125,"2":0},{"0":407.28240966796875,"1":597.1812744140625,"2":0},{"0":407.16851806640625,"1":599.1419067382812,"2":0},{"0":405.77911376953125,"1":603.7765502929688,"2":0},{"0":403.6488952636719,"1":610.4985961914062,"2":0},{"0":401.0567626953125,"1":618.393798828125,"2":0},{"0":398.2203063964844,"1":626.8156127929688,"2":0},{"0":395.14031982421875,"1":634.8622436523438,"2":0},{"0":391.54742431640625,"1":641.7315673828125,"2":0},{"0":387.721923828125,"1":647.2166137695312,"2":0},{"0":383.4752197265625,"1":651.2263793945312,"2":0},{"0":379.1778564453125,"1":653.5550537109375,"2":0},{"0":375.5020446777344,"1":654.2929077148438,"2":0},{"0":372.4320983886719,"1":653.1234130859375,"2":0},{"0":371.1523742675781,"1":649.9683227539062,"2":0},{"0":371.95684814453125,"1":645.1256103515625,"2":0},{"0":375.03369140625,"1":639.3567504882812,"2":0},{"0":380.33905029296875,"1":632.7250366210938,"2":0},{"0":387.30633544921875,"1":625.7745361328125,"2":0},{"0":395.7415771484375,"1":618.4849853515625,"2":0},{"0":405.2123107910156,"1":611.2789916992188,"2":0},{"0":415.5133972167969,"1":603.8372802734375,"2":0},{"0":426.0767822265625,"1":596.47705078125,"2":0},{"0":435.938720703125,"1":589.683349609375,"2":0},{"0":444.55670166015625,"1":583.7285766601562,"2":0},{"0":451.45306396484375,"1":579.2695922851562,"2":0},{"0":456.121826171875,"1":576.8160400390625,"2":0},{"0":457.7218017578125,"1":576.8090209960938,"2":0},{"0":456.1189880371094,"1":579.3790893554688,"2":0},{"0":452.01422119140625,"1":584.2955932617188,"2":0},{"0":446.3526306152344,"1":590.9052734375,"2":0},{"0":440.9880676269531,"1":598.1122436523438,"2":0},{"0":436.9547119140625,"1":605.0713500976562,"2":0},{"0":434.997314453125,"1":610.5390625,"2":0},{"0":435.6786193847656,"1":614.2494506835938,"2":0},{"0":438.82147216796875,"1":616.0718383789062,"2":0},{"0":444.0216064453125,"1":615.6524658203125,"2":0},{"0":450.5494079589844,"1":613.296875,"2":0},{"0":457.7540283203125,"1":609.3364868164062,"2":0},{"0":464.3206787109375,"1":605.1690063476562,"2":0},{"0":468.7929382324219,"1":602.49169921875,"2":0},{"0":471.1744079589844,"1":602.3682861328125,"2":0},{"0":471.165771484375,"1":604.5494995117188,"2":0},{"0":470.0315856933594,"1":608.5294189453125,"2":0},{"0":469.2536315917969,"1":612.883544921875,"2":0},{"0":470.1741638183594,"1":616.1421508789062,"2":0},{"0":473.1389465332031,"1":617.7214965820312,"2":0},{"0":478.1713562011719,"1":617.447509765625,"2":0},{"0":485.0245056152344,"1":615.1378784179688,"2":0},{"0":492.82318115234375,"1":610.8247680664062,"2":0},{"0":500.7547302246094,"1":605.024658203125,"2":0},{"0":507.99261474609375,"1":598.13671875,"2":0},{"0":513.0433349609375,"1":591.0136108398438,"2":0},{"0":515.2388916015625,"1":584.1810302734375,"2":0},{"0":514.6419677734375,"1":578.2332763671875,"2":0},{"0":511.24371337890625,"1":573.890869140625,"2":0},{"0":505.75811767578125,"1":571.4426879882812,"2":0},{"0":498.9422912597656,"1":571.0429077148438,"2":0},{"0":491.8440856933594,"1":572.4852905273438,"2":0},{"0":485.85443115234375,"1":575.1337280273438,"2":0},{"0":482.1412658691406,"1":577.5072021484375,"2":0},{"0":480.39703369140625,"1":579.005615234375,"2":1},{"0":532.3207397460938,"1":600.041259765625,"2":0},{"0":534.6321411132812,"1":598.1228637695312,"2":0},{"0":537.5759887695312,"1":594.936767578125,"2":0},{"0":539.9036254882812,"1":591.4332275390625,"2":0},{"0":540.3164672851562,"1":588.1898193359375,"2":0},{"0":538.9073486328125,"1":585.771484375,"2":0},{"0":535.6312866210938,"1":584.4598999023438,"2":0},{"0":530.3552856445312,"1":584.43310546875,"2":0},{"0":524.112060546875,"1":586.4539794921875,"2":0},{"0":517.0955200195312,"1":590.63720703125,"2":0},{"0":510.3489990234375,"1":596.2816162109375,"2":0},{"0":505.24517822265625,"1":602.6655883789062,"2":0},{"0":502.4576721191406,"1":608.5234375,"2":0},{"0":502.4122009277344,"1":613.0150756835938,"2":0},{"0":505.14892578125,"1":615.576904296875,"2":0},{"0":510.00091552734375,"1":615.8905029296875,"2":0},{"0":516.11962890625,"1":614.107666015625,"2":0},{"0":522.6790771484375,"1":610.3920288085938,"2":0},{"0":528.9921264648438,"1":605.594482421875,"2":0},{"0":534.0630493164062,"1":600.3099975585938,"2":0},{"0":537.59130859375,"1":595.3958129882812,"2":0},{"0":539.4948120117188,"1":592.0020141601562,"2":0},{"0":540.042236328125,"1":590.9708251953125,"2":0},{"0":539.913330078125,"1":592.5372314453125,"2":0},{"0":539.7378540039062,"1":595.9390258789062,"2":0},{"0":540.1915283203125,"1":599.9296264648438,"2":0},{"0":541.4015502929688,"1":603.442626953125,"2":0},{"0":543.987060546875,"1":606.2373046875,"2":0},{"0":547.7545776367188,"1":607.4353637695312,"2":0},{"0":552.5988159179688,"1":607.085205078125,"2":0},{"0":558.41162109375,"1":605.6022338867188,"2":0},{"0":564.0653076171875,"1":602.7846069335938,"2":0},{"0":569.2715454101562,"1":599.4718017578125,"2":0},{"0":572.7876586914062,"1":597.5299682617188,"2":0},{"0":574.0009765625,"1":597.6197509765625,"2":0},{"0":573.4580688476562,"1":600.0010986328125,"2":0},{"0":571.6468505859375,"1":604.0300903320312,"2":0},{"0":569.5880126953125,"1":608.5493774414062,"2":0},{"0":568.421875,"1":612.0155029296875,"2":0},{"0":568.8670654296875,"1":613.7544555664062,"2":0},{"0":571.5914306640625,"1":613.7047729492188,"2":0},{"0":576.4818115234375,"1":611.3976440429688,"2":0},{"0":583.4568481445312,"1":607.637939453125,"2":0},{"0":591.5078735351562,"1":603.1085815429688,"2":0},{"0":599.2965698242188,"1":598.3854370117188,"2":0},{"0":606.3126220703125,"1":594.8518676757812,"2":0},{"0":610.2882080078125,"1":593.3253784179688,"2":0},{"0":610.124267578125,"1":594.0642700195312,"2":0},{"0":606.63671875,"1":596.88427734375,"2":0},{"0":600.877685546875,"1":601.3157958984375,"2":0},{"0":595.3070068359375,"1":606.5341186523438,"2":0},{"0":591.7326049804688,"1":611.3482055664062,"2":0},{"0":591.406982421875,"1":614.846435546875,"2":0},{"0":594.3558959960938,"1":616.6337280273438,"2":0},{"0":600.4630126953125,"1":615.9560546875,"2":0},{"0":608.869873046875,"1":612.7372436523438,"2":0},{"0":618.95849609375,"1":607.666015625,"2":0},{"0":629.3635864257812,"1":600.8217163085938,"2":0},{"0":639.537353515625,"1":592.9312133789062,"2":0},{"0":648.2630615234375,"1":585.289306640625,"2":0},{"0":654.6834716796875,"1":578.5122680664062,"2":0},{"0":657.7843627929688,"1":573.7662963867188,"2":0},{"0":657.509033203125,"1":571.5784912109375,"2":0},{"0":654.2567749023438,"1":572.1771850585938,"2":0},{"0":648.7930297851562,"1":575.7205200195312,"2":0},{"0":642.3194580078125,"1":581.6533203125,"2":0},{"0":636.4307861328125,"1":589.2824096679688,"2":0},{"0":632.4844970703125,"1":597.4244384765625,"2":0},{"0":631.3667602539062,"1":604.6748657226562,"2":0},{"0":634.1726684570312,"1":610.2140502929688,"2":0},{"0":640.5948486328125,"1":613.8624877929688,"2":0},{"0":650.9658203125,"1":615.3242797851562,"2":0},{"0":661.4136352539062,"1":615.0568237304688,"2":0},{"0":669.3450927734375,"1":614.138671875,"2":1}];
+
+// "2":1 = pen lifts AFTER drawing to this point (end of stroke)
+// "2":0 = pen down, continue drawing
+// Returns { paths, primaryCount } — primaries first, then deferred secondaries (dots, crosses)
+function parseCalligrapherData(data) {
+    const rawStrokes = [];
+    let currentStroke = [];
+    for (const pt of data) {
+        currentStroke.push([pt["0"], pt["1"]]);
+        if (pt["2"] === 1) {
+            if (currentStroke.length >= 2) rawStrokes.push(currentStroke);
+            currentStroke = [];
+        }
+    }
+    if (currentStroke.length >= 2) rawStrokes.push(currentStroke);
+
+    // Classify strokes: short ones (dots, crosses, diacritics) are secondaries
+    // rendered AFTER the main word strokes for natural handwriting order
+    const SHORT_THRESHOLD = 15; // px span — dots and short crosses
+    const primaries = [];
+    const secondaries = [];
+    for (const stroke of rawStrokes) {
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const [x, y] of stroke) {
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+        const span = (maxX - minX) + (maxY - minY);
+        if (span <= SHORT_THRESHOLD) {
+            secondaries.push(stroke);
+        } else {
+            primaries.push(stroke);
+        }
+    }
+
+    // Subsample dense points — calligrapher data has ~2-5px spacing,
+    // engine adds 80 Catmull-Rom steps per segment, so dense = blobby
+    const SUBSAMPLE = 3;
+    function subsample(stroke) {
+        if (stroke.length <= 6) return stroke;
+        const sampled = [stroke[0]];
+        for (let i = SUBSAMPLE; i < stroke.length - 1; i += SUBSAMPLE) {
+            sampled.push(stroke[i]);
+        }
+        sampled.push(stroke[stroke.length - 1]);
+        return sampled;
+    }
+
+    // Primaries first, then secondaries (deferred) — rainbow flows through word, dots come after
+    const allPaths = [...primaries.map(subsample), ...secondaries.map(subsample)];
+    return { paths: allPaths, primaryCount: primaries.length };
+}
+
+function getCalligrapherLetterHeight(paths) {
+    let minY = Infinity, maxY = -Infinity;
+    for (const path of paths) for (const [x, y] of path) {
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    return (maxY - minY) * 0.57;
+}
+
+// ============================================
+// CONFIG BUILDER
+// ============================================
+
+function buildConfig() {
+    const shape = SquigWord.deriveShape(state.seed, state.fontStyle);
+    if (state.autoShape) {
+        state.rotation = shape.rotation;
+        state.slant = shape.slant;
+        state.loopWidth = shape.loopWidth;
+        state.loopHeight = shape.loopHeight;
+        syncShapeSliders();
+    }
+    return {
+        seed: state.seed,
+        fontStyle: state.fontStyle,
+        rotation: state.rotation,
+        slant: state.slant,
+        loopWidth: state.loopWidth,
+        loopHeight: state.loopHeight,
+        colorOffset: state.colorOffset,
+        deferSecondary: state.deferSecondary,
+        hand: shape.hand,
+        wordPath: state.wordPath
+    };
+}
+
+function syncShapeSliders() {
+    const rotEl = document.getElementById('rotationSlider');
+    const slantEl = document.getElementById('slantSlider');
+    const swellEl = document.getElementById('loopWidthSlider');
+    const riseEl = document.getElementById('loopHeightSlider');
+    if (rotEl) { rotEl.value = state.rotation; document.getElementById('rotationVal').innerHTML = (state.rotation * 180 / Math.PI).toFixed(1) + '&deg;'; }
+    if (slantEl) { slantEl.value = state.slant; document.getElementById('slantVal').innerHTML = (state.slant * 180 / Math.PI).toFixed(1) + '&deg;'; }
+    if (swellEl) { swellEl.value = state.loopWidth; document.getElementById('loopWidthVal').textContent = Math.round(state.loopWidth * 100) + '%'; }
+    if (riseEl) { riseEl.value = state.loopHeight; document.getElementById('loopHeightVal').textContent = Math.round(state.loopHeight * 100) + '%'; }
+}
+
+// ============================================
+// RENDER
+// ============================================
+
+let lastTraits = null;
+let lastResolvedType = null;
+
+function render() {
+    const width = canvas.width;
+    const height = canvas.height;
+    const config = buildConfig();
+
+    const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+    lastTraits = traits;
+
+    // Pipe's black underlay is invisible on pure black — nudge once on type transition
+    if (traits.type === 'Pipe' && lastResolvedType !== 'Pipe' && state.bgIndex === 10) state.bgIndex = 8;
+    lastResolvedType = traits.type;
+
+    ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
+    ctx.fillRect(0, 0, width, height);
+
+    // Update button visuals
+    document.getElementById('hyperBtn').classList.toggle('active', traits.hyperRainbow);
+    document.getElementById('deferBtn').classList.toggle('active', state.deferSecondary);
+    updateButtons();
+
+    if (!state.text.trim() && state.fontStyle !== 'Calligrapher') {
+        const startHue = ((traits.startColor + state.colorOffset) % 255 + 255) % 255;
+        updateTraits(traits, startHue, startHue);
+        return;
+    }
+
+    let particles, adjustedSpread;
+    if (state.fontStyle === 'Calligrapher') {
+        const { paths, primaryCount } = parseCalligrapherData(calligrapherStrokes);
+        if (paths.length === 0) return;
+        const letterHeight = getCalligrapherLetterHeight(paths);
+        const result = SquigWord.renderFromPaths(paths, width, height, traits.type, traits.spread, config, letterHeight, primaryCount);
+        particles = result.particles;
+        adjustedSpread = result.adjustedSpread;
+    } else {
+        const result = SquigWord.renderToParticles(state.text, width, height, traits.type, traits.spread, config);
+        particles = result.particles;
+        adjustedSpread = result.adjustedSpread;
+    }
+    SquigWord.drawParticles(ctx, particles);
+
+    // Keep type-draw animation baseline in sync with actual particle count
+    // so the next keystroke animates from the right position
+    state.prevParticleCount = particles.length;
+
+    const effectiveStartColor = ((traits.startColor + state.colorOffset) % 255 + 255) % 255;
+    const totalColor = particles.length;
+    const endHue = traits.reverse
+        ? 255 - (((totalColor / adjustedSpread) + effectiveStartColor) % 255)
+        : (((totalColor / adjustedSpread) + effectiveStartColor) % 255);
+
+    updateTraits(traits, effectiveStartColor, endHue);
+
+    SquigWord.renderSnowfro(refCtx, refCanvas.width, refCanvas.height, {
+        seed: state.seed,
+        forceType: state.forceType,
+        forceHyper: state.forceHyper,
+        bgIndex: state.bgIndex,
+        colorOffset: state.colorOffset
+    });
+}
+
+// ============================================
+// COLOR CYCLING (NEW)
+// ============================================
+
+function startColorCycling() {
+    if (state.drawAnimating) stopDrawAnimation(); // mutually exclusive
+    state.colorCycling = true;
+    colorCycleLoop();
+}
+
+function stopColorCycling() {
+    state.colorCycling = false;
+    if (state.cycleAnimFrame) {
+        cancelAnimationFrame(state.cycleAnimFrame);
+        state.cycleAnimFrame = null;
+    }
+}
+
+function colorCycleLoop() {
+    if (!state.colorCycling) return;
+    state.colorOffset += state.cycleSpeed;
+    render();
+    state.cycleAnimFrame = requestAnimationFrame(colorCycleLoop);
+}
+
+// ============================================
+// DRAW ANIMATION
+// ============================================
+
+let cachedParticles = null;
+
+let drawDistProgress = 0;
+
+function startDrawAnimation() {
+    if (state.drawAnimating) { stopDrawAnimation(); return; }
+    if (state.colorCycling) stopColorCycling(); // mutually exclusive
+    state.drawAnimating = true;
+    document.getElementById('animateBtn').textContent = '\u23F9';
+    document.getElementById('animateBtn').classList.add('playing');
+
+    const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+    const config = buildConfig();
+    const result = SquigWord.renderToParticles(state.text, canvas.width, canvas.height, traits.type, traits.spread, config);
+    cachedParticles = result.particles;
+
+    // Time-based animation: complete in a fixed duration regardless of particle count/type
+    drawDistProgress = 0;
+    animateDrawing();
+}
+
+function stopDrawAnimation() {
+    state.drawAnimating = false;
+    document.getElementById('animateBtn').textContent = '\u25B6';
+    document.getElementById('animateBtn').classList.remove('playing');
+    render();
+}
+
+function animateDrawing() {
+    if (!state.drawAnimating || !cachedParticles || cachedParticles.length === 0) {
+        stopDrawAnimation(); return;
+    }
+    const total = cachedParticles.length;
+    // Time-based: animation always takes ~same duration regardless of particle count/type
+    const targetFrames = (15 / state.drawSpeed) * 60;
+    drawDistProgress += total / targetFrames;
+
+    const toDraw = Math.min(Math.floor(drawDistProgress), total);
+
+    ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    SquigWord.drawParticles(ctx, cachedParticles.slice(0, toDraw));
+
+    if (drawDistProgress >= total) { stopDrawAnimation(); }
+    else { requestAnimationFrame(animateDrawing); }
+}
+
+// ============================================
+// TYPE-TO-DRAW ANIMATION
+// ============================================
+// When typing, the new letter draws itself in progressively while
+// previously typed letters stay rendered. Creates a "watching someone
+// write" effect — the pen continues from where it left off.
+
+function startTypeDraw(particles, fromIdx, adjustedSpread, traits) {
+    // Stop any other animations
+    if (state.drawAnimating) stopDrawAnimation();
+    if (state.colorCycling) stopColorCycling();
+
+    state.typeDrawing = true;
+    state.typeDrawParticles = particles;
+    state.typeDrawPrevLen = fromIdx;
+    state.typeDrawProgress = 0;
+    state.typeDrawSpread = adjustedSpread;
+    state.typeDrawTraits = traits;
+
+    typeDrawLoop();
+}
+
+function stopTypeDraw() {
+    state.typeDrawing = false;
+    if (state.typeDrawParticles) {
+        state.prevParticleCount = state.typeDrawParticles.length;
+    }
+    state.typeDrawParticles = null;
+    render();
+}
+
+function typeDrawLoop() {
+    if (!state.typeDrawing || !state.typeDrawParticles) {
+        stopTypeDraw(); return;
+    }
+    const total = state.typeDrawParticles.length;
+    const newLen = total - state.typeDrawPrevLen;
+
+    // Time-based: new letter draws in ~fixed duration, typeSpeed controls how fast
+    const targetFrames = Math.max(6, (5 / state.typeSpeed) * 60);
+    state.typeDrawProgress += newLen / targetFrames;
+
+    const toDraw = Math.min(state.typeDrawPrevLen + Math.floor(state.typeDrawProgress), total);
+
+    ctx.fillStyle = SquigWord.BACKGROUNDS[state.bgIndex];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    SquigWord.drawParticles(ctx, state.typeDrawParticles.slice(0, toDraw));
+
+    if (state.typeDrawProgress >= newLen) {
+        state.typeDrawing = false;
+        state.typeDrawParticles = null;
+        // Update traits display
+        const effectiveStartColor = ((state.typeDrawTraits.startColor + state.colorOffset) % 255 + 255) % 255;
+        const endHue = state.typeDrawTraits.reverse
+            ? 255 - (((total / state.typeDrawSpread) + effectiveStartColor) % 255)
+            : (((total / state.typeDrawSpread) + effectiveStartColor) % 255);
+        updateTraits(state.typeDrawTraits, effectiveStartColor, endHue);
+        // Update ref squiggle
+        SquigWord.renderSnowfro(refCtx, refCanvas.width, refCanvas.height, {
+            seed: state.seed, forceType: state.forceType, forceHyper: state.forceHyper,
+            bgIndex: state.bgIndex, colorOffset: state.colorOffset
+        });
+    } else {
+        requestAnimationFrame(typeDrawLoop);
+    }
+}
+
+// ============================================
+// UI FUNCTIONS
+// ============================================
+
+function updateTraits(traits, startHue, endHue) {
+    const el = document.getElementById('traits');
+    if (!traits) { el.innerHTML = ''; return; }
+    const [sr, sg, sb] = SquigWord.hsbToRgb(startHue, 255, 255);
+    const [er, eg, eb] = SquigWord.hsbToRgb(endHue, 255, 255);
+    el.innerHTML = `
+        <span>${traits.hyperRainbow ? '<span class="trait-val" style="color:var(--accent)">Hyper</span> ' : ''}<span class="trait-val">${traits.type}</span> ${state.fontStyle}</span>
+        <span>spread <span class="trait-val">${traits.spread}</span>${state.forceHyper === null ? '' : state.forceHyper ? ' (forced)' : ' (off)'}</span>
+        <span>color <span class="trait-val">${Math.round(startHue)}</span>
+        <span class="color-dot" style="background:rgb(${sr},${sg},${sb});margin:0 4px"></span>
+        &rarr;
+        <span class="color-dot" style="background:rgb(${er},${eg},${eb});margin:0 4px"></span>
+        <span class="trait-val">${Math.round(endHue)}</span></span>
+        <span>bg <span class="trait-val">${state.bgIndex}</span></span>
+    `;
+}
+
+function updateButtons() {
+    const resolvedType = lastTraits ? lastTraits.type : null;
+    document.querySelectorAll('#typeBtns .btn').forEach(btn => {
+        const name = btn.textContent;
+        if (name === 'Hyper') return; // hyper handled separately in render
+        btn.classList.toggle('active', name === state.forceType);
+        btn.classList.toggle('resolved', state.forceType === 'Auto' && name === resolvedType);
+    });
+    document.querySelectorAll('#fontBtns .btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === state.fontStyle);
+    });
+}
+
+function updateScriptLocks() {
+    const wRow = document.getElementById('loopWidthSlider').closest('.slider-row');
+    const hSlider = document.getElementById('loopHeightSlider');
+    if (state.fontStyle === 'Script') {
+        wRow.classList.add('disabled');
+        state.loopWidth = 1.0;
+        document.getElementById('loopWidthSlider').value = 1.0;
+        document.getElementById('loopWidthVal').textContent = '100%';
+        hSlider.min = '1.0';
+        if (state.loopHeight < 1.0) {
+            state.loopHeight = 1.0;
+            hSlider.value = 1.0;
+            document.getElementById('loopHeightVal').textContent = '100%';
+        }
+    } else {
+        wRow.classList.remove('disabled');
+        hSlider.min = '0.75';
+    }
+}
+
+function toggleDarkMode() {
+    state.darkMode = !state.darkMode;
+    document.body.classList.toggle('light-mode', !state.darkMode);
+    document.getElementById('modeToggle').textContent = state.darkMode ? '\u2600' : '\u263E';
+    state.bgIndex = state.darkMode ? 10 : 0;
+    render();
+}
+
+function downloadPNG() {
+    const link = document.createElement('a');
+    link.download = `squigword-${state.text}-${state.seed}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
+// ============================================
+// SETUP
+// ============================================
+
+function setup() {
+    // Type buttons
+    const typeBtns = document.getElementById('typeBtns');
+    TYPES.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.textContent = t;
+        btn.onclick = () => {
+            state.forceType = t;
+            // Pipe's black underlay is invisible on pure black — start on dark gray
+            if (t === 'Pipe' && state.bgIndex === 10) state.bgIndex = 8;
+            updateButtons();
+            render();
+        };
+        typeBtns.appendChild(btn);
+    });
+
+    // Font buttons
+    const fontBtns = document.getElementById('fontBtns');
+    FONT_NAMES.forEach(f => {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.textContent = f;
+        btn.onclick = () => {
+            state.fontStyle = f;
+            const pasteEl = document.getElementById('calligrapherPaste');
+            if (pasteEl) pasteEl.style.display = f === 'Calligrapher' ? 'block' : 'none';
+            updateButtons();
+            updateScriptLocks();
+            render();
+        };
+        fontBtns.appendChild(btn);
+    });
+
+    // Calligrapher paste/load
+    const loadBtn = document.getElementById('loadCalligrapherBtn');
+    if (loadBtn) loadBtn.addEventListener('click', () => {
+        const raw = document.getElementById('calligrapherInput').value.trim();
+        try {
+            let cleaned = raw;
+            if (cleaned.startsWith("'") || cleaned.startsWith('"')) cleaned = cleaned.slice(1);
+            if (cleaned.endsWith("'") || cleaned.endsWith('"')) cleaned = cleaned.slice(0, -1);
+            calligrapherStrokes = JSON.parse(cleaned);
+            render();
+        } catch (e) { alert('Invalid JSON — paste the full output of JSON.stringify(tr)'); }
+    });
+
+    // Select all on focus for text inputs
+    for (const id of ['textInput', 'seedInput']) {
+        document.getElementById(id).addEventListener('focus', (e) => e.target.select());
+    }
+
+    // Text input — with type-to-draw animation
+    // When characters are added, animate the new letter being drawn.
+    // prevParticleCount tracks how many particles are "already written" so we
+    // know where to start the animation for the new letter.
+    let prevText = state.text;
+    state.prevParticleCount = 0;
+
+    document.getElementById('textInput').addEventListener('input', (e) => {
+        const newText = e.target.value;
+        const wasAdding = newText.length > prevText.length;
+        prevText = newText;
+        state.text = newText;
+
+        // If currently type-drawing, finish instantly before starting next letter
+        if (state.typeDrawing) {
+            state.typeDrawing = false;
+            if (state.typeDrawParticles) {
+                state.prevParticleCount = state.typeDrawParticles.length;
+            }
+            state.typeDrawParticles = null;
+            state.typeDrawProgress = 0;
+        }
+
+        if (wasAdding && newText.trim()) {
+            const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+            const config = buildConfig();
+            try {
+                const { particles, adjustedSpread } = SquigWord.renderToParticles(
+                    newText, canvas.width, canvas.height, traits.type, traits.spread, config
+                );
+                if (particles.length > state.prevParticleCount) {
+                    startTypeDraw(particles, state.prevParticleCount, adjustedSpread, traits);
+                    state.prevParticleCount = particles.length;
+                } else {
+                    state.prevParticleCount = particles.length;
+                    render();
+                }
+            } catch (err) { render(); }
+        } else {
+            // Backspace or clear — re-render instantly, update particle count
+            if (newText.trim()) {
+                const traits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+                const config = buildConfig();
+                try {
+                    const { particles } = SquigWord.renderToParticles(
+                        newText, canvas.width, canvas.height, traits.type, traits.spread, config
+                    );
+                    state.prevParticleCount = particles.length;
+                } catch (e) { state.prevParticleCount = 0; }
+            } else {
+                state.prevParticleCount = 0;
+            }
+            render();
+        }
+    });
+
+    // Initialize particle count for the default text
+    try {
+        const initTraits = SquigWord.resolveTraits(state.seed, state.forceType, state.forceHyper);
+        const initConfig = buildConfig();
+        const initResult = SquigWord.renderToParticles(
+            state.text, canvas.width, canvas.height, initTraits.type, initTraits.spread, initConfig
+        );
+        state.prevParticleCount = initResult.particles.length;
+    } catch (e) { state.prevParticleCount = 0; }
+
+    // Seed input — reset particle count since different seed = different layout
+    document.getElementById('seedInput').addEventListener('input', (e) => {
+        state.seed = parseInt(e.target.value) || 0;
+        state.prevParticleCount = 0;
+        prevText = state.text;
+        render();
+    });
+
+    // Random word
+    const words = [
+        'Squiggles','Wiggly','Jiggly','Groovy','Loopy','Balloon','Jelly','Giggles','Wobbly','Bubbles',
+        'Noodle','Zigzag','Twisty','Curly','Swirly','Bouncy','Squishy','Fuzzy','Breezy','Snappy',
+        'Mellow','Ripple','Shimmer','Flutter','Groove','Jumble','Tangle','Doodle','Sprinkle','Twirl',
+        'Wavy','Floppy','Slinky','Bubbly','Zappy','Cosmic','Dreamy','Funky','Goofy','Jazzy',
+        'Quirky','Peppy','Zippy','Wacky','Dizzy','Glimmer','Sparkle','Wobble','Squish','Jiggle'
+    ];
+    document.getElementById('randWordBtn').addEventListener('click', () => {
+        state.text = words[Math.floor(Math.random() * words.length)];
+        state.seed = Math.floor(Math.random() * 100000);
+        document.getElementById('textInput').value = state.text;
+        document.getElementById('seedInput').value = state.seed;
+        prevText = state.text;
+        render();
+    });
+
+    // Random seed
+    document.getElementById('randSeedBtn').addEventListener('click', () => {
+        state.seed = Math.floor(Math.random() * 100000);
+        document.getElementById('seedInput').value = state.seed;
+        render();
+    });
+
+    // Phantom toggle — swap spaces ↔ underscores
+    document.getElementById('phantomToggle').addEventListener('click', () => {
+        const input = document.getElementById('textInput');
+        const hasSpaces = input.value.includes(' ');
+        input.value = hasSpaces ? input.value.replace(/ /g, '_') : input.value.replace(/_/g, ' ');
+        state.text = input.value;
+        prevText = state.text;
+        state.prevParticleCount = 0;
+        render();
+    });
+
+    // Alphabet chunker — cycle through letters in groups of 4, wrap produces different groupings
+    let alphaLowerIdx = 0;
+    let alphaUpperIdx = 0;
+    function alphaChunk(alpha, idx) {
+        let s = '';
+        for (let i = 0; i < 4; i++) s += alpha[(idx + i) % 26];
+        return s;
+    }
+    document.getElementById('alphaLowerBtn').addEventListener('click', () => {
+        state.text = alphaChunk('abcdefghijklmnopqrstuvwxyz', alphaLowerIdx);
+        alphaLowerIdx = (alphaLowerIdx + 4) % 26;
+        document.getElementById('textInput').value = state.text;
+        prevText = state.text;
+        render();
+    });
+    document.getElementById('alphaUpperBtn').addEventListener('click', () => {
+        state.text = alphaChunk('ABCDEFGHIJKLMNOPQRSTUVWXYZ', alphaUpperIdx);
+        alphaUpperIdx = (alphaUpperIdx + 4) % 26;
+        document.getElementById('textInput').value = state.text;
+        prevText = state.text;
+        render();
+    });
+
+    // Word buttons — one-touch test words
+    const quickWords = [
+        'hello','squig','jazz','rhythm','zigzag','can',
+        'So Cool','Big Mood','No Way','Oh Snap','Too Fun',
+        'Squiggles','Wiggly','Groovy','Noodle','Twisty','Curly',
+        'Funky Town','Cosmic Dust','Dreamy Vibes','Good Times',
+        'Sparkle','Wobble','Jiggle','Bubbles','Slinky','Jazzy','Doodle'
+    ];
+    const wordBtns = document.getElementById('wordBtns');
+    quickWords.forEach(w => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-word';
+        btn.textContent = w;
+        btn.onclick = () => {
+            state.text = w;
+            document.getElementById('textInput').value = w;
+            prevText = w;
+            state.prevParticleCount = 0;
+            render();
+        };
+        wordBtns.appendChild(btn);
+    });
+
+    // Alphabet buttons — individual letters
+    const alphaRow = document.getElementById('alphaRow');
+    const alphaUpperRow = document.getElementById('alphaUpperRow');
+    for (let i = 0; i < 26; i++) {
+        const lower = String.fromCharCode(97 + i);
+        const upper = String.fromCharCode(65 + i);
+        [[ lower, alphaRow ], [ upper, alphaUpperRow ]].forEach(([ch, row]) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-letter';
+            btn.textContent = ch;
+            btn.onclick = () => {
+                state.text = ch;
+                document.getElementById('textInput').value = ch;
+                prevText = ch;
+                state.prevParticleCount = 0;
+                startDrawAnimation();
+            };
+            row.appendChild(btn);
+        });
+    }
+
+    // Shape sliders — manual move disables Auto Shape
+    function disableAutoShape() {
+        state.autoShape = false;
+        document.getElementById('autoShapeBtn').classList.remove('active');
+    }
+    document.getElementById('rotationSlider').addEventListener('input', (e) => {
+        disableAutoShape();
+        state.rotation = parseFloat(e.target.value);
+        document.getElementById('rotationVal').innerHTML = (state.rotation * 180 / Math.PI).toFixed(1) + '&deg;';
+        render();
+    });
+    document.getElementById('slantSlider').addEventListener('input', (e) => {
+        disableAutoShape();
+        state.slant = parseFloat(e.target.value);
+        document.getElementById('slantVal').innerHTML = (state.slant * 180 / Math.PI).toFixed(1) + '&deg;';
+        render();
+    });
+    document.getElementById('loopWidthSlider').addEventListener('input', (e) => {
+        disableAutoShape();
+        state.loopWidth = parseFloat(e.target.value);
+        document.getElementById('loopWidthVal').textContent = Math.round(state.loopWidth * 100) + '%';
+        render();
+    });
+    document.getElementById('loopHeightSlider').addEventListener('input', (e) => {
+        disableAutoShape();
+        state.loopHeight = parseFloat(e.target.value);
+        document.getElementById('loopHeightVal').textContent = Math.round(state.loopHeight * 100) + '%';
+        render();
+    });
+
+    // Randomize shape
+    function randomizeShapeSliders() {
+        const r = (min, max) => min + Math.random() * (max - min);
+        const isScript = state.fontStyle === 'Script';
+
+        state.rotation = r(-0.0873, 0.1745);
+        state.slant = r(-0.1745, 0.1745);
+        state.loopWidth = isScript ? 1.0 : r(0.75, 1.2);
+        state.loopHeight = isScript ? r(1.0, 1.2) : r(0.75, 1.2);
+
+        document.getElementById('rotationSlider').value = state.rotation;
+        document.getElementById('rotationVal').innerHTML = (state.rotation * 180 / Math.PI).toFixed(1) + '&deg;';
+        document.getElementById('slantSlider').value = state.slant;
+        document.getElementById('slantVal').innerHTML = (state.slant * 180 / Math.PI).toFixed(1) + '&deg;';
+        document.getElementById('loopWidthSlider').value = state.loopWidth;
+        document.getElementById('loopWidthVal').textContent = Math.round(state.loopWidth * 100) + '%';
+        document.getElementById('loopHeightSlider').value = state.loopHeight;
+        document.getElementById('loopHeightVal').textContent = Math.round(state.loopHeight * 100) + '%';
+    }
+
+    document.getElementById('randomizeBtn').addEventListener('click', () => {
+        randomizeShapeSliders();
+        render();
+    });
+
+    document.getElementById('randomizeAllBtn').addEventListener('click', () => {
+        state.seed = Math.floor(Math.random() * 10000);
+        document.getElementById('seedInput').value = state.seed;
+        randomizeShapeSliders();
+        render();
+    });
+
+    // Auto Shape toggle — derive rotation/slant/swell/rise from squiggle
+    document.getElementById('autoShapeBtn').addEventListener('click', () => {
+        state.autoShape = !state.autoShape;
+        document.getElementById('autoShapeBtn').classList.toggle('active', state.autoShape);
+        render();
+    });
+
+    // Defer secondary strokes toggle
+    document.getElementById('deferBtn').addEventListener('click', () => {
+        state.deferSecondary = !state.deferSecondary;
+        render();
+    });
+
+    // Hyper toggle
+    document.getElementById('hyperBtn').addEventListener('click', () => {
+        // Cycle: null (auto) -> true (forced on) -> false (forced off) -> null
+        if (state.forceHyper === null) state.forceHyper = true;
+        else if (state.forceHyper === true) state.forceHyper = false;
+        else state.forceHyper = null;
+        render();
+    });
+
+    // Connected toggle (word-path before/after)
+    document.getElementById('connectedBtn').addEventListener('click', () => {
+        state.wordPath = !state.wordPath;
+        document.getElementById('connectedBtn').classList.toggle('active', state.wordPath);
+        render();
+    });
+
+    // Action row
+    document.getElementById('modeToggle').addEventListener('click', toggleDarkMode);
+    document.getElementById('downloadBtn').addEventListener('click', downloadPNG);
+    document.getElementById('animateBtn').addEventListener('click', startDrawAnimation);
+    document.getElementById('speedSlider').addEventListener('input', (e) => {
+        state.drawSpeed = parseInt(e.target.value);
+        document.getElementById('speedVal').textContent = state.drawSpeed;
+    });
+    document.getElementById('typeSpeedSlider').addEventListener('input', (e) => {
+        state.typeSpeed = parseInt(e.target.value);
+        document.getElementById('typeSpeedVal').textContent = state.typeSpeed;
+    });
+
+    // Canvas click — toggle color cycling
+    canvas.addEventListener('click', () => {
+        if (state.colorCycling) stopColorCycling();
+        else startColorCycling();
+    });
+
+    // Ref canvas click — also toggles color cycling
+    refCanvas.addEventListener('click', () => {
+        if (state.colorCycling) stopColorCycling();
+        else startColorCycling();
+    });
+
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT') return;
+        if (e.code === 'Space') {
+            e.preventDefault();
+            state.bgIndex = (state.bgIndex + 1) % SquigWord.BACKGROUNDS.length;
+            render();
+        } else if (e.code === 'ArrowUp') {
+            e.preventDefault();
+            state.cycleSpeed = e.shiftKey ? 1.5 : Math.min(state.cycleSpeed + 0.02, 1.5);
+        } else if (e.code === 'ArrowDown') {
+            e.preventDefault();
+            state.cycleSpeed = e.shiftKey ? 0.02 : Math.max(state.cycleSpeed - 0.02, 0.02);
+        }
+    });
+
+    updateButtons();
+    updateScriptLocks();
+    render();
+}
+
+setup();
+</script>
+</body>
+</html>

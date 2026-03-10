@@ -1,0 +1,35 @@
+# OS
+.DS_Store
+
+# Workshop — local only
+noodle/
+archive/
+handoffs/
+tasks/
+tools/
+
+# Protocol — never public
+CLAUDE.md
+HANDOFF*.md
+LESSONS.md
+PLAN.md
+TUNING_NOTES.md
+SQUIGWORD_SPEC.md
+plans/
+
+# Secrets & documents
+*.env
+.keys
+*.pdf
+*.docx
+
+# Iteration drafts
+squigword-v2*.html
+squigword-base.html
+
+# Font source files
+ems-allure.json
+EMSAllure.svg
+
+# Claude
+.claude/
