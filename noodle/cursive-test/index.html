@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cursive Writing Test — SquigWord</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #fff; font-family: system-ui, sans-serif; color: #222; padding: 20px; }
+  h1 { font-size: 18px; margin-bottom: 12px; }
+  .controls { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  input[type="text"] { padding: 6px 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; width: 200px; }
+  button { padding: 6px 14px; font-size: 14px; border: 1px solid #999; border-radius: 4px; background: #f5f5f5; cursor: pointer; }
+  button:hover { background: #e8e8e8; }
+  .speed-control { display: flex; align-items: center; gap: 6px; }
+  .speed-control label { font-size: 13px; color: #666; }
+  .speed-control input[type="range"] { width: 160px; }
+  .speed-val { font-size: 13px; color: #666; min-width: 40px; }
+  canvas { border: 1px solid #ddd; display: block; margin-bottom: 20px; }
+  .section { margin-bottom: 24px; }
+  .section h2 { font-size: 14px; color: #666; margin-bottom: 8px; }
+  .info { font-size: 12px; color: #999; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Cursive Writing — One Continuous Stroke</h1>
+
+<div class="controls">
+  <input type="text" id="wordInput" value="beautiful" placeholder="Type a word...">
+  <button id="drawBtn">Draw</button>
+  <button id="animateBtn">Animate</button>
+  <div class="speed-control">
+    <label>Speed:</label>
+    <input type="range" id="speedSlider" min="-3" max="2" step="0.1" value="0">
+    <span class="speed-val" id="speedVal">1.0x</span>
+  </div>
+</div>
+
+<div class="section">
+  <h2>One continuous stroke, deferred dots/crossbars</h2>
+  <canvas id="canvas" width="900" height="300"></canvas>
+  <div class="info" id="info"></div>
+</div>
+
+<script>
+const HERSHEY = {
+  'a': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXVRUWUZV[W[YZZY\\V',
+  'b': 'M[MVOSRNSLTITGSFQGPIOMNTNZO[P[RZTXUUURVVWWYW[V',
+  'c': 'MXTTTSSRQROSNTMVMXNZP[S[VYXV',
+  'd': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXZF RVRUWUZV[W[YZZY\\V',
+  'e': 'NXOYQXRWSUSSRRQROSNUNXOZQ[S[UZVYXV',
+  'f': 'OWOVSQUNVLWIWGVFTGSIQQNZKaJdJfKgMfNcOZP[R[TZUYWV',
+  'g': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZTY RVRTYPdOfMgLfLdMaP^S\\U[XY[V',
+  'h': 'M\\MVOSRNSLTITGSFQGPIOMNSM[ RM[NXOVQSSRURVSVUUXUZV[W[YZZY\\V',
+  'i': 'PWSMSNTNTMSM RPVRRPXPZQ[R[TZUYWV',
+  'j': 'PWSMSNTNTMSM RPVRRLdKfIgHfHdIaL^O\\Q[TYWV',
+  'k': 'M[MVOSRNSLTITGSFQGPIOMNSM[ RM[NXOVQSSRURVSVUTVQV RQVSWTZU[V[XZYY[V',
+  'l': 'OWOVQSTNULVIVGUFSGRIQMPTPZQ[R[TZUYWV',
+  'm': 'E^EVGSIRJSJTIXH[ RIXJVLSNRPRQSQTPXO[ RPXQVSSURWRXSXUWXWZX[Y[[Z\\Y^V',
+  'n': 'J\\JVLSNROSOTNXM[ RNXOVQSSRURVSVUUXUZV[W[YZZY\\V',
+  'o': 'LZRRPRNSMTLVLXMZO[Q[SZTYUWUUTSRRQSQURWTXWXYWZV',
+  'p': 'KZKVMSNQMUGg RMUNSPRRRTSUUUWTYSZQ[ RMZO[R[UZWYZV',
+  'q': 'L[UUTSRRPRNSMTLVLXMZO[Q[SZ RVRUUSZPaOdOfPgRfScS\\U[XY[V',
+  'r': 'MZMVOSPQPSSSTTTVSYSZT[U[WZXYZV',
+  's': 'NYNVPSQQQSSVTXTZR[ RNZP[T[VZWYYV',
+  't': 'OXOVQSSO RVFPXPZQ[S[UZVYXV RPNWN',
+  'u': 'L[LVNRLXLZM[O[QZSXUU RVRTXTZU[V[XZYY[V',
+  'v': 'L[LVNRMWMZN[O[RZTXUUUR RURVVWWYW[V',
+  'w': 'I^LRJTIWIYJ[L[NZPX RRRPXPZQ[S[UZWXXUXR RXRYVZW\\W^V',
+  'x': 'JZJVLSNRPRQSQZR[U[XYZV RWSVRTRSSOZN[L[KZ',
+  'y': 'L[LVNRLXLZM[O[QZSXUU RVRPdOfMgLfLdMaP^S\\U[XY[V',
+  'z': 'LZLVNSPRRRTTTVSXQZN[P\\Q^QaPdOfMgLfLdMaP^S\\WYZV'
+};
+
+const R_ORD = 82;
+const HERSHEY_BASELINE = 9;
+
+function decodeGlyph(data) {
+  const left = data.charCodeAt(0) - R_ORD;
+  const right = data.charCodeAt(1) - R_ORD;
+  const strokes = [];
+  let cur = [];
+  let i = 2;
+  while (i < data.length) {
+    if (data[i] === ' ' && data[i+1] === 'R') {
+      if (cur.length > 0) { strokes.push(cur); cur = []; }
+      i += 2;
+      continue;
+    }
+    cur.push([data.charCodeAt(i) - R_ORD, data.charCodeAt(i+1) - R_ORD]);
+    i += 2;
+  }
+  if (cur.length > 0) strokes.push(cur);
+  return { left, right, strokes };
+}
+
+function classifyStrokes(char, strokes) {
+  const primary = [];
+  const secondary = [];
+
+  if (char === 'i' || char === 'j') {
+    if (strokes.length >= 2) {
+      secondary.push(strokes[0]);
+      for (let i = 1; i < strokes.length; i++) primary.push(strokes[i]);
+    } else {
+      primary.push(...strokes);
+    }
+  } else if (char === 't') {
+    for (const stroke of strokes) {
+      const yRange = Math.max(...stroke.map(p => p[1])) - Math.min(...stroke.map(p => p[1]));
+      const xRange = Math.max(...stroke.map(p => p[0])) - Math.min(...stroke.map(p => p[0]));
+      if (yRange <= 1 && xRange > 2 && stroke.length <= 3) {
+        secondary.push(stroke);
+      } else {
+        primary.push(stroke);
+      }
+    }
+  } else {
+    primary.push(...strokes);
+  }
+
+  return { primary, secondary };
+}
+
+function makeConnector(from, to, isInterLetter, scale) {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const dist = Math.sqrt(dx*dx + dy*dy);
+
+  if (dist < scale * 0.5) return [];
+
+  const steps = Math.max(4, Math.floor(dist / (scale * 0.8)));
+  const pts = [];
+
+  if (isInterLetter && dist > scale * 2) {
+    const baseY = HERSHEY_BASELINE * scale;
+    const fromPull = (baseY - from[1]) * 0.25;
+    const toPull = (baseY - to[1]) * 0.25;
+
+    const c1x = from[0] + dx * 0.35;
+    const c1y = from[1] + fromPull;
+    const c2x = from[0] + dx * 0.65;
+    const c2y = to[1] + toPull;
+
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const mt = 1 - t;
+      pts.push([
+        mt*mt*mt*from[0] + 3*mt*mt*t*c1x + 3*mt*t*t*c2x + t*t*t*to[0],
+        mt*mt*mt*from[1] + 3*mt*mt*t*c1y + 3*mt*t*t*c2y + t*t*t*to[1]
+      ]);
+    }
+  } else {
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      pts.push([from[0] + dx * t, from[1] + dy * t]);
+    }
+  }
+
+  return pts;
+}
+
+function buildWordPath(word, scale) {
+  scale = scale || 8;
+  let cursorX = 0;
+  const allPoints = [];
+  const allSecondary = [];
+
+  for (let ci = 0; ci < word.length; ci++) {
+    const ch = word[ci];
+    if (ch === ' ') { cursorX += 10; continue; }
+    const data = HERSHEY[ch];
+    if (!data) continue;
+
+    const glyph = decodeGlyph(data);
+    const classified = classifyStrokes(ch, glyph.strokes);
+    const offsetX = cursorX - glyph.left;
+
+    for (let si = 0; si < classified.primary.length; si++) {
+      const stroke = classified.primary[si];
+      const transformed = stroke.map(function(pt) {
+        return [(pt[0] + offsetX) * scale, pt[1] * scale];
+      });
+
+      if (allPoints.length > 0 && transformed.length > 0) {
+        var lastPt = allPoints[allPoints.length - 1];
+        var nextPt = transformed[0];
+        var isInterLetter = (si === 0);
+        var connector = makeConnector(lastPt, nextPt, isInterLetter, scale);
+        for (var ci2 = 0; ci2 < connector.length; ci2++) allPoints.push(connector[ci2]);
+      }
+
+      for (var pi = 0; pi < transformed.length; pi++) allPoints.push(transformed[pi]);
+    }
+
+    for (var si2 = 0; si2 < classified.secondary.length; si2++) {
+      var stroke2 = classified.secondary[si2];
+      allSecondary.push(stroke2.map(function(pt) {
+        return [(pt[0] + offsetX) * scale, pt[1] * scale];
+      }));
+    }
+
+    cursorX += (glyph.right - glyph.left);
+  }
+
+  return {
+    mainPath: allPoints,
+    secondaryStrokes: allSecondary,
+    width: cursorX * scale
+  };
+}
+
+// ============================================================
+// Rendering
+// ============================================================
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+var input = document.getElementById('wordInput');
+var drawBtn = document.getElementById('drawBtn');
+var animateBtn = document.getElementById('animateBtn');
+var speedSlider = document.getElementById('speedSlider');
+var speedValEl = document.getElementById('speedVal');
+var infoEl = document.getElementById('info');
+var animFrame = null;
+
+function getSpeed() {
+  return Math.pow(10, parseFloat(speedSlider.value));
+}
+
+speedSlider.addEventListener('input', function() {
+  var spd = getSpeed();
+  speedValEl.textContent = spd < 0.1 ? spd.toFixed(3) + 'x' : spd < 1 ? spd.toFixed(2) + 'x' : spd.toFixed(1) + 'x';
+});
+
+function drawPath(path, color, lineWidth) {
+  if (path.length < 2) return;
+  ctx.strokeStyle = color || '#000';
+  ctx.lineWidth = lineWidth || 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(path[0][0], path[0][1]);
+  for (var i = 1; i < path.length; i++) {
+    ctx.lineTo(path[i][0], path[i][1]);
+  }
+  ctx.stroke();
+}
+
+function drawSecondary(strokes) {
+  for (var i = 0; i < strokes.length; i++) {
+    var stroke = strokes[i];
+    if (stroke.length >= 2) {
+      drawPath(stroke, '#000', 2.5);
+    } else if (stroke.length === 1) {
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(stroke[0][0], stroke[0][1], 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawDot(x, y, radius, color) {
+  ctx.fillStyle = color || '#000';
+  ctx.beginPath();
+  ctx.arc(x, y, radius || 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function getBounds(result) {
+  var minY = Infinity, maxY = -Infinity;
+  var minX = Infinity, maxX = -Infinity;
+  for (var i = 0; i < result.mainPath.length; i++) {
+    var x = result.mainPath[i][0], y = result.mainPath[i][1];
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  for (var s = 0; s < result.secondaryStrokes.length; s++) {
+    for (var j = 0; j < result.secondaryStrokes[s].length; j++) {
+      var x2 = result.secondaryStrokes[s][j][0], y2 = result.secondaryStrokes[s][j][1];
+      if (x2 < minX) minX = x2; if (x2 > maxX) maxX = x2;
+      if (y2 < minY) minY = y2; if (y2 > maxY) maxY = y2;
+    }
+  }
+  return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+}
+
+function render(word) {
+  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+  var result = buildWordPath(word, 8);
+  var bounds = getBounds(result);
+  var padding = 40;
+
+  canvas.width = Math.max(900, bounds.maxX - bounds.minX + padding * 2);
+  canvas.height = Math.max(200, bounds.maxY - bounds.minY + padding * 2);
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.translate(-bounds.minX + padding, -bounds.minY + padding);
+  drawPath(result.mainPath, '#000', 2.5);
+  drawSecondary(result.secondaryStrokes);
+  ctx.restore();
+
+  infoEl.textContent = '"' + word + '" — ' + result.mainPath.length + ' points continuous, ' + result.secondaryStrokes.length + ' deferred';
+}
+
+function animate(word) {
+  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+  var result = buildWordPath(word, 8);
+  var bounds = getBounds(result);
+  var padding = 40;
+
+  canvas.width = Math.max(900, bounds.maxX - bounds.minX + padding * 2);
+  canvas.height = Math.max(200, bounds.maxY - bounds.minY + padding * 2);
+
+  var totalMainPts = result.mainPath.length;
+  var totalSecPts = 0;
+  for (var s = 0; s < result.secondaryStrokes.length; s++) totalSecPts += result.secondaryStrokes[s].length;
+  var totalPts = totalMainPts + totalSecPts;
+
+  var progress = 0;
+  var lastTime = null;
+  var baseRate = totalPts / 4000;
+
+  function frame(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    var dt = timestamp - lastTime;
+    lastTime = timestamp;
+
+    progress += dt * baseRate * getSpeed();
+    var currentIdx = Math.min(Math.floor(progress), totalPts);
+
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(-bounds.minX + padding, -bounds.minY + padding);
+
+    var mainIdx = Math.min(currentIdx, totalMainPts);
+    if (mainIdx >= 2) {
+      var partial = result.mainPath.slice(0, mainIdx);
+      drawPath(partial, '#000', 2.5);
+      if (currentIdx < totalMainPts) {
+        var tip = partial[partial.length - 1];
+        drawDot(tip[0], tip[1], 4, '#e00');
+      }
+    }
+
+    if (currentIdx > totalMainPts) {
+      var secProgress = currentIdx - totalMainPts;
+      for (var si = 0; si < result.secondaryStrokes.length; si++) {
+        var stroke = result.secondaryStrokes[si];
+        if (secProgress <= 0) break;
+        var n = Math.min(secProgress, stroke.length);
+        if (n >= 2) {
+          drawPath(stroke.slice(0, n), '#000', 2.5);
+        } else if (n === 1) {
+          drawDot(stroke[0][0], stroke[0][1], 2.5, '#000');
+        }
+        secProgress -= stroke.length;
+      }
+    }
+
+    ctx.restore();
+
+    if (currentIdx < totalPts) {
+      animFrame = requestAnimationFrame(frame);
+    } else {
+      infoEl.textContent = '"' + word + '" — done! ' + totalMainPts + ' main, ' + result.secondaryStrokes.length + ' deferred';
+    }
+  }
+
+  animFrame = requestAnimationFrame(frame);
+  infoEl.textContent = 'Animating "' + word + '"...';
+}
+
+drawBtn.addEventListener('click', function() { render(input.value); });
+animateBtn.addEventListener('click', function() { animate(input.value); });
+input.addEventListener('keydown', function(e) { if (e.key === 'Enter') render(input.value); });
+
+var params = new URLSearchParams(window.location.search);
+if (params.get('word')) input.value = params.get('word');
+
+render(input.value);
+</script>
+</body>
+</html>
