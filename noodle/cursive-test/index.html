@@ -3,47 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cursive Writing Test — SquigWord</title>
+<title>Cursive Writing — One Continuous Stroke</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #fff; font-family: system-ui, sans-serif; color: #222; padding: 20px; }
-  h1 { font-size: 18px; margin-bottom: 12px; }
+  body { background: #fff; color: #111; font-family: -apple-system, system-ui, sans-serif; padding: 20px; }
+  h1 { font-size: 20px; margin-bottom: 16px; }
   .controls { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-  input[type="text"] { padding: 6px 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; width: 200px; }
-  button { padding: 6px 14px; font-size: 14px; border: 1px solid #999; border-radius: 4px; background: #f5f5f5; cursor: pointer; }
-  button:hover { background: #e8e8e8; }
-  .speed-control { display: flex; align-items: center; gap: 6px; }
-  .speed-control label { font-size: 13px; color: #666; }
-  .speed-control input[type="range"] { width: 160px; }
-  .speed-val { font-size: 13px; color: #666; min-width: 40px; }
+  input[type="text"] { font-size: 18px; padding: 6px 12px; border: 2px solid #333; border-radius: 4px; width: 240px; }
+  button { font-size: 14px; padding: 6px 16px; border: 2px solid #333; border-radius: 4px; background: #f5f5f5; cursor: pointer; }
+  button:hover { background: #e0e0e0; }
+  .speed-control { display: flex; align-items: center; gap: 8px; }
+  .speed-control label { font-size: 13px; font-weight: 600; }
+  .speed-stops { display: flex; gap: 2px; align-items: center; }
+  .speed-stop { width: 28px; height: 28px; border: 1px solid #ccc; border-radius: 3px; background: #f9f9f9; cursor: pointer; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+  .speed-stop.active { background: #333; color: #fff; border-color: #333; }
+  .speed-stop:hover { background: #ddd; }
   canvas { border: 1px solid #ddd; display: block; margin-bottom: 20px; }
-  .section { margin-bottom: 24px; }
-  .section h2 { font-size: 14px; color: #666; margin-bottom: 8px; }
-  .info { font-size: 12px; color: #999; margin-top: 4px; }
+  .label { font-size: 13px; color: #666; margin-bottom: 4px; }
 </style>
 </head>
 <body>
-
 <h1>Cursive Writing — One Continuous Stroke</h1>
-
 <div class="controls">
   <input type="text" id="wordInput" value="beautiful" placeholder="Type a word...">
-  <button id="drawBtn">Draw</button>
-  <button id="animateBtn">Animate</button>
+  <button onclick="drawWord()">Draw</button>
+  <button onclick="animateWord()">Animate</button>
   <div class="speed-control">
     <label>Speed:</label>
-    <input type="range" id="speedSlider" min="-3" max="2" step="0.1" value="0">
-    <span class="speed-val" id="speedVal">1.0x</span>
+    <div class="speed-stops" id="speedStops"></div>
   </div>
 </div>
-
-<div class="section">
-  <h2>One continuous stroke, deferred dots/crossbars</h2>
-  <canvas id="canvas" width="900" height="300"></canvas>
-  <div class="info" id="info"></div>
-</div>
+<div class="label">Catmull-Rom smoothed, tangent-aware connectors, deferred dots/crossbars</div>
+<canvas id="canvas" width="1200" height="300"></canvas>
 
 <script>
+// Hershey Script Simplex — raw glyph data
 const HERSHEY = {
   'a': 'L\\UUTSRRPRNSMTLVLXMZO[Q[SZTXVRUWUZV[W[YZZY\\V',
   'b': 'M[MVOSRNSLTITGSFQGPIOMNTNZO[P[RZTXUUURVVWWYW[V',
@@ -70,319 +64,350 @@ const HERSHEY = {
   'w': 'I^LRJTIWIYJ[L[NZPX RRRPXPZQ[S[UZWXXUXR RXRYVZW\\W^V',
   'x': 'JZJVLSNRPRQSQZR[U[XYZV RWSVRTRSSOZN[L[KZ',
   'y': 'L[LVNRLXLZM[O[QZSXUU RVRPdOfMgLfLdMaP^S\\U[XY[V',
-  'z': 'LZLVNSPRRRTTTVSXQZN[P\\Q^QaPdOfMgLfLdMaP^S\\WYZV'
+  'z': 'LZLVNSPRRRTTTVSXQZN[P\\Q^QaPdOfMgLfLdMaP^S\\WYZV',
+  'A': 'H\\RFK[ RRFY[ RIXMX',
+  'B': 'G]LFL[ RLFYFXGWHXJXLYMYOXPVPSQ RLPSPUQVSWUXUYSX[L[',
+  'C': 'G\\XIYLYFXIVGSFQFOGMILKKOKULXNZQ[S[VYXV',
+  'D': 'G]LFL[ RLFSFUGVHWJWLXMXPWRVSTL[',
+  'E': 'G\\LFL[ RLFYF RLPTP RL[Y[',
+  'F': 'G[LFL[ RLFYF RLPTP',
+  'G': 'G\\XIYLYFXIVGSFQFOGMILKKOKULXNZQ[S[VYXVRS',
+  'H': 'F^KFK[ RYFY[ RKPYP',
+  'I': 'NVRFR[',
+  'J': 'JZVFVVUXTYRYOXJVH',
+  'K': 'F\\KFK[ RYFKT RPOY[',
+  'L': 'I[NFN[ RN[V[',
+  'M': 'F^KFK[ RKFRX RYFY[ RYFRX',
+  'N': 'G]LFL[ RLFYY RYFY[',
+  'O': 'G]QFOGMILKKOKSLVMXOZQ[S[UYXVZS RQFSGVHXJXLWNS[',
+  'P': 'G]LFL[ RLFYFXGWHXJXLYMYOXPVP',
+  'Q': 'G]QFOGMILKKOKSLVMXOZQ[S[UYXVZS RQFSGVHXJXLWNS[ RO[V\\',
+  'R': 'G]LFL[ RLFYFXGWHXJXLYMYOXPVP RRPY[',
+  'S': 'H\\XIYFYLXIVGSFPFMGKIKLLNOPURWSXUXXWZ RYYZ[P[MZKXIV',
+  'T': 'I[RFR[ RKFYF',
+  'U': 'F^KFKULXNZQ[S[VZXYYF',
+  'V': 'H\\KFR[ RYFRX',
+  'W': 'F^IFKX RRFKX RRFYX R[FYX',
+  'X': 'H\\KFY[ RYFK[',
+  'Y': 'H\\KFRPR[ RYFRP',
+  'Z': 'H\\YFK[ RKFYF RK[Y[',
+  ' ': 'JZ'
 };
 
-const R_ORD = 82;
-const HERSHEY_BASELINE = 9;
+const R = 82;
+
+// Letters whose secondary strokes (dots, crossbars) must be deferred
+const DEFERRED_LETTERS = new Set(['i', 'j', 't', 'k', 'x', 'f']);
 
 function decodeGlyph(data) {
-  const left = data.charCodeAt(0) - R_ORD;
-  const right = data.charCodeAt(1) - R_ORD;
+  if (!data || data.length < 2) return { left: 0, right: 0, strokes: [] };
+  const left = data.charCodeAt(0) - R;
+  const right = data.charCodeAt(1) - R;
   const strokes = [];
   let cur = [];
   let i = 2;
   while (i < data.length) {
-    if (data[i] === ' ' && data[i+1] === 'R') {
-      if (cur.length > 0) { strokes.push(cur); cur = []; }
+    if (data[i] === ' ' && i + 1 < data.length && data[i+1] === 'R') {
+      if (cur.length) { strokes.push(cur); cur = []; }
       i += 2;
       continue;
     }
-    cur.push([data.charCodeAt(i) - R_ORD, data.charCodeAt(i+1) - R_ORD]);
+    cur.push([data.charCodeAt(i) - R, data.charCodeAt(i+1) - R]);
     i += 2;
   }
-  if (cur.length > 0) strokes.push(cur);
+  if (cur.length) strokes.push(cur);
   return { left, right, strokes };
 }
 
-function classifyStrokes(char, strokes) {
-  const primary = [];
-  const secondary = [];
+// Separate primary stroke (longest continuous path) from secondary (dots, crossbars)
+function separateStrokes(glyph, ch) {
+  const strokes = glyph.strokes;
+  if (strokes.length <= 1) return { primary: strokes[0] || [], deferred: [] };
 
-  if (char === 'i' || char === 'j') {
-    if (strokes.length >= 2) {
-      secondary.push(strokes[0]);
-      for (let i = 1; i < strokes.length; i++) primary.push(strokes[i]);
-    } else {
-      primary.push(...strokes);
-    }
-  } else if (char === 't') {
-    for (const stroke of strokes) {
-      const yRange = Math.max(...stroke.map(p => p[1])) - Math.min(...stroke.map(p => p[1]));
-      const xRange = Math.max(...stroke.map(p => p[0])) - Math.min(...stroke.map(p => p[0]));
-      if (yRange <= 1 && xRange > 2 && stroke.length <= 3) {
-        secondary.push(stroke);
-      } else {
-        primary.push(stroke);
-      }
-    }
-  } else {
-    primary.push(...strokes);
+  if (DEFERRED_LETTERS.has(ch)) {
+    // For i/j: first stroke is the dot, second is the body
+    // For t: strokes[0] is the body, strokes[2] is the crossbar
+    // For k: strokes[0]+[1] body, strokes[2] is the kick
+    // For f: long body stroke is primary, others deferred
+    // General strategy: longest stroke is primary, rest deferred
+    let longestIdx = 0, longestLen = 0;
+    strokes.forEach((s, idx) => { if (s.length > longestLen) { longestLen = s.length; longestIdx = idx; } });
+
+    // For 't', also include the stem (stroke 0) connected to body
+    // Actually for Hershey, just pick the longest as primary
+    const primary = strokes[longestIdx];
+    const deferred = strokes.filter((_, idx) => idx !== longestIdx);
+    return { primary, deferred };
   }
 
-  return { primary, secondary };
+  // For non-deferred multi-stroke letters, chain all strokes into one
+  const chained = [];
+  for (const s of strokes) {
+    for (const pt of s) chained.push(pt);
+  }
+  return { primary: chained, deferred: [] };
 }
 
-function makeConnector(from, to, isInterLetter, scale) {
-  const dx = to[0] - from[0];
-  const dy = to[1] - from[1];
-  const dist = Math.sqrt(dx*dx + dy*dy);
+// Catmull-Rom spline interpolation
+function catmullRom(points, subdivisions = 10) {
+  if (points.length < 2) return points.slice();
+  const result = [];
 
-  if (dist < scale * 0.5) return [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[Math.min(points.length - 1, i + 1)];
+    const p3 = points[Math.min(points.length - 1, i + 2)];
 
-  const steps = Math.max(4, Math.floor(dist / (scale * 0.8)));
-  const pts = [];
-
-  if (isInterLetter && dist > scale * 2) {
-    const baseY = HERSHEY_BASELINE * scale;
-    const fromPull = (baseY - from[1]) * 0.25;
-    const toPull = (baseY - to[1]) * 0.25;
-
-    const c1x = from[0] + dx * 0.35;
-    const c1y = from[1] + fromPull;
-    const c2x = from[0] + dx * 0.65;
-    const c2y = to[1] + toPull;
-
-    for (let i = 1; i <= steps; i++) {
-      const t = i / steps;
-      const mt = 1 - t;
-      pts.push([
-        mt*mt*mt*from[0] + 3*mt*mt*t*c1x + 3*mt*t*t*c2x + t*t*t*to[0],
-        mt*mt*mt*from[1] + 3*mt*mt*t*c1y + 3*mt*t*t*c2y + t*t*t*to[1]
-      ]);
-    }
-  } else {
-    for (let i = 1; i <= steps; i++) {
-      const t = i / steps;
-      pts.push([from[0] + dx * t, from[1] + dy * t]);
+    for (let s = 0; s < subdivisions; s++) {
+      const t = s / subdivisions;
+      const t2 = t * t, t3 = t2 * t;
+      const x = 0.5 * ((2*p1[0]) + (-p0[0]+p2[0])*t + (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2 + (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3);
+      const y = 0.5 * ((2*p1[1]) + (-p0[1]+p2[1])*t + (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2 + (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3);
+      result.push([x, y]);
     }
   }
+  result.push(points[points.length - 1]);
+  return result;
+}
 
+// Compute tangent angle at start or end of a point array
+function tangentAngle(pts, atEnd) {
+  if (pts.length < 2) return 0;
+  let a, b;
+  if (atEnd) {
+    a = pts[pts.length - 2]; b = pts[pts.length - 1];
+  } else {
+    a = pts[0]; b = pts[1];
+  }
+  return Math.atan2(b[1] - a[1], b[0] - a[0]);
+}
+
+// Cubic Bézier connector between two letters (tangent-aware)
+function connectLetters(exitPt, exitAngle, entryPt, entryAngle) {
+  const dx = entryPt[0] - exitPt[0], dy = entryPt[1] - exitPt[1];
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist < 0.5) return [];
+
+  const handleLen = dist * 0.35;
+  const p0 = exitPt;
+  const p1 = [exitPt[0] + Math.cos(exitAngle) * handleLen, exitPt[1] + Math.sin(exitAngle) * handleLen];
+  const p2 = [entryPt[0] - Math.cos(entryAngle) * handleLen, entryPt[1] - Math.sin(entryAngle) * handleLen];
+  const p3 = entryPt;
+
+  const pts = [];
+  const steps = 12;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps, mt = 1 - t;
+    pts.push([
+      mt*mt*mt*p0[0] + 3*mt*mt*t*p1[0] + 3*mt*t*t*p2[0] + t*t*t*p3[0],
+      mt*mt*mt*p0[1] + 3*mt*mt*t*p1[1] + 3*mt*t*t*p2[1] + t*t*t*p3[1]
+    ]);
+  }
   return pts;
 }
 
-function buildWordPath(word, scale) {
-  scale = scale || 8;
-  let cursorX = 0;
-  const allPoints = [];
-  const allSecondary = [];
+// Build a single continuous path for a word
+function buildWordPath(word) {
+  const scale = 3.5;
+  const baselineY = 18;
+  let cursorX = 10;
+  const spacing = 1.5;
+
+  const allPrimary = []; // continuous path points
+  const allDeferred = []; // dots, crossbars to draw after
+  let prevExitPt = null;
+  let prevExitAngle = 0;
 
   for (let ci = 0; ci < word.length; ci++) {
     const ch = word[ci];
-    if (ch === ' ') { cursorX += 10; continue; }
+    if (ch === ' ') { cursorX += 12; prevExitPt = null; continue; }
     const data = HERSHEY[ch];
     if (!data) continue;
-
     const glyph = decodeGlyph(data);
-    const classified = classifyStrokes(ch, glyph.strokes);
-    const offsetX = cursorX - glyph.left;
+    const { primary, deferred } = separateStrokes(glyph, ch);
+    if (!primary || !primary.length) continue;
 
-    for (let si = 0; si < classified.primary.length; si++) {
-      const stroke = classified.primary[si];
-      const transformed = stroke.map(function(pt) {
-        return [(pt[0] + offsetX) * scale, pt[1] * scale];
-      });
+    // Position this letter
+    const letterX = cursorX - glyph.left * scale;
+    const letterY = baselineY;
 
-      if (allPoints.length > 0 && transformed.length > 0) {
-        var lastPt = allPoints[allPoints.length - 1];
-        var nextPt = transformed[0];
-        var isInterLetter = (si === 0);
-        var connector = makeConnector(lastPt, nextPt, isInterLetter, scale);
-        for (var ci2 = 0; ci2 < connector.length; ci2++) allPoints.push(connector[ci2]);
-      }
+    // Transform primary points to canvas space
+    const xformed = primary.map(([x, y]) => [letterX + x * scale, letterY + y * scale]);
 
-      for (var pi = 0; pi < transformed.length; pi++) allPoints.push(transformed[pi]);
+    // Connect to previous letter
+    if (prevExitPt) {
+      const entryAngle = tangentAngle(xformed, false);
+      const connector = connectLetters(prevExitPt, prevExitAngle, xformed[0], entryAngle);
+      for (const pt of connector) allPrimary.push(pt);
     }
 
-    for (var si2 = 0; si2 < classified.secondary.length; si2++) {
-      var stroke2 = classified.secondary[si2];
-      allSecondary.push(stroke2.map(function(pt) {
-        return [(pt[0] + offsetX) * scale, pt[1] * scale];
-      }));
+    // Add this letter's primary stroke
+    for (const pt of xformed) allPrimary.push(pt);
+
+    prevExitPt = xformed[xformed.length - 1];
+    prevExitAngle = tangentAngle(xformed, true);
+
+    // Store deferred strokes (transformed)
+    for (const dStroke of deferred) {
+      allDeferred.push(dStroke.map(([x, y]) => [letterX + x * scale, letterY + y * scale]));
     }
 
-    cursorX += (glyph.right - glyph.left);
+    cursorX += (glyph.right - glyph.left) * scale + spacing;
   }
 
-  return {
-    mainPath: allPoints,
-    secondaryStrokes: allSecondary,
-    width: cursorX * scale
-  };
+  // Smooth the primary path with Catmull-Rom
+  const smoothed = catmullRom(allPrimary, 8);
+
+  // Smooth deferred strokes too
+  const smoothDeferred = allDeferred.map(s => s.length > 2 ? catmullRom(s, 6) : s);
+
+  return { primary: smoothed, deferred: smoothDeferred, rawPrimary: allPrimary };
 }
 
-// ============================================================
-// Rendering
-// ============================================================
-var canvas = document.getElementById('canvas');
-var ctx = canvas.getContext('2d');
-var input = document.getElementById('wordInput');
-var drawBtn = document.getElementById('drawBtn');
-var animateBtn = document.getElementById('animateBtn');
-var speedSlider = document.getElementById('speedSlider');
-var speedValEl = document.getElementById('speedVal');
-var infoEl = document.getElementById('info');
-var animFrame = null;
+// Draw a complete word (instant)
+function drawWord() {
+  const word = document.getElementById('wordInput').value || 'beautiful';
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-function getSpeed() {
-  return Math.pow(10, parseFloat(speedSlider.value));
-}
+  const { primary, deferred } = buildWordPath(word);
 
-speedSlider.addEventListener('input', function() {
-  var spd = getSpeed();
-  speedValEl.textContent = spd < 0.1 ? spd.toFixed(3) + 'x' : spd < 1 ? spd.toFixed(2) + 'x' : spd.toFixed(1) + 'x';
-});
-
-function drawPath(path, color, lineWidth) {
-  if (path.length < 2) return;
-  ctx.strokeStyle = color || '#000';
-  ctx.lineWidth = lineWidth || 2.5;
+  // Draw primary continuous stroke
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 2;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.beginPath();
-  ctx.moveTo(path[0][0], path[0][1]);
-  for (var i = 1; i < path.length; i++) {
-    ctx.lineTo(path[i][0], path[i][1]);
+
+  if (primary.length > 1) {
+    ctx.beginPath();
+    ctx.moveTo(primary[0][0], primary[0][1]);
+    for (let i = 1; i < primary.length; i++) {
+      ctx.lineTo(primary[i][0], primary[i][1]);
+    }
+    ctx.stroke();
   }
-  ctx.stroke();
+
+  // Draw deferred strokes (dots, crossbars)
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1.5;
+  for (const stroke of deferred) {
+    if (stroke.length < 2) {
+      // Single point = dot
+      if (stroke.length === 1) {
+        ctx.beginPath();
+        ctx.arc(stroke[0][0], stroke[0][1], 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      continue;
+    }
+    ctx.beginPath();
+    ctx.moveTo(stroke[0][0], stroke[0][1]);
+    for (let i = 1; i < stroke.length; i++) ctx.lineTo(stroke[i][0], stroke[i][1]);
+    ctx.stroke();
+  }
 }
 
-function drawSecondary(strokes) {
-  for (var i = 0; i < strokes.length; i++) {
-    var stroke = strokes[i];
-    if (stroke.length >= 2) {
-      drawPath(stroke, '#000', 2.5);
-    } else if (stroke.length === 1) {
-      ctx.fillStyle = '#000';
+// Speed stops: 0.1, 0.2, 0.3, 0.5, 0.7, 1.0, 1.2, 1.5, 1.8, 2.0
+const SPEED_STOPS = [0.1, 0.2, 0.3, 0.5, 0.7, 1.0, 1.2, 1.5, 1.8, 2.0];
+let currentSpeedIdx = 5; // default 1.0
+let animationId = null;
+
+function initSpeedStops() {
+  const container = document.getElementById('speedStops');
+  SPEED_STOPS.forEach((spd, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'speed-stop' + (idx === currentSpeedIdx ? ' active' : '');
+    btn.textContent = spd === 1.0 ? '1x' : spd.toString();
+    btn.onclick = () => {
+      currentSpeedIdx = idx;
+      document.querySelectorAll('.speed-stop').forEach((b, i) => {
+        b.classList.toggle('active', i === idx);
+      });
+    };
+    container.appendChild(btn);
+  });
+}
+
+function animateWord() {
+  if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+
+  const word = document.getElementById('wordInput').value || 'beautiful';
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const { primary, deferred } = buildWordPath(word);
+
+  if (primary.length < 2) return;
+
+  let drawIdx = 0;
+  const DOT_RADIUS = 4;
+
+  function frame() {
+    const speed = SPEED_STOPS[currentSpeedIdx];
+    const ptsPerFrame = Math.max(1, Math.round(3 * speed));
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw the path up to current index
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(primary[0][0], primary[0][1]);
+    const end = Math.min(drawIdx, primary.length - 1);
+    for (let i = 1; i <= end; i++) {
+      ctx.lineTo(primary[i][0], primary[i][1]);
+    }
+    ctx.stroke();
+
+    // Red pen dot
+    if (end < primary.length) {
+      const pt = primary[end];
+      ctx.fillStyle = '#e33';
       ctx.beginPath();
-      ctx.arc(stroke[0][0], stroke[0][1], 2.5, 0, Math.PI * 2);
+      ctx.arc(pt[0], pt[1], DOT_RADIUS, 0, Math.PI * 2);
       ctx.fill();
     }
-  }
-}
 
-function drawDot(x, y, radius, color) {
-  ctx.fillStyle = color || '#000';
-  ctx.beginPath();
-  ctx.arc(x, y, radius || 3, 0, Math.PI * 2);
-  ctx.fill();
-}
+    drawIdx += ptsPerFrame;
 
-function getBounds(result) {
-  var minY = Infinity, maxY = -Infinity;
-  var minX = Infinity, maxX = -Infinity;
-  for (var i = 0; i < result.mainPath.length; i++) {
-    var x = result.mainPath[i][0], y = result.mainPath[i][1];
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
-    if (y < minY) minY = y; if (y > maxY) maxY = y;
-  }
-  for (var s = 0; s < result.secondaryStrokes.length; s++) {
-    for (var j = 0; j < result.secondaryStrokes[s].length; j++) {
-      var x2 = result.secondaryStrokes[s][j][0], y2 = result.secondaryStrokes[s][j][1];
-      if (x2 < minX) minX = x2; if (x2 > maxX) maxX = x2;
-      if (y2 < minY) minY = y2; if (y2 > maxY) maxY = y2;
-    }
-  }
-  return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
-}
-
-function render(word) {
-  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
-  var result = buildWordPath(word, 8);
-  var bounds = getBounds(result);
-  var padding = 40;
-
-  canvas.width = Math.max(900, bounds.maxX - bounds.minX + padding * 2);
-  canvas.height = Math.max(200, bounds.maxY - bounds.minY + padding * 2);
-
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.save();
-  ctx.translate(-bounds.minX + padding, -bounds.minY + padding);
-  drawPath(result.mainPath, '#000', 2.5);
-  drawSecondary(result.secondaryStrokes);
-  ctx.restore();
-
-  infoEl.textContent = '"' + word + '" — ' + result.mainPath.length + ' points continuous, ' + result.secondaryStrokes.length + ' deferred';
-}
-
-function animate(word) {
-  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
-  var result = buildWordPath(word, 8);
-  var bounds = getBounds(result);
-  var padding = 40;
-
-  canvas.width = Math.max(900, bounds.maxX - bounds.minX + padding * 2);
-  canvas.height = Math.max(200, bounds.maxY - bounds.minY + padding * 2);
-
-  var totalMainPts = result.mainPath.length;
-  var totalSecPts = 0;
-  for (var s = 0; s < result.secondaryStrokes.length; s++) totalSecPts += result.secondaryStrokes[s].length;
-  var totalPts = totalMainPts + totalSecPts;
-
-  var progress = 0;
-  var lastTime = null;
-  var baseRate = totalPts / 4000;
-
-  function frame(timestamp) {
-    if (!lastTime) lastTime = timestamp;
-    var dt = timestamp - lastTime;
-    lastTime = timestamp;
-
-    progress += dt * baseRate * getSpeed();
-    var currentIdx = Math.min(Math.floor(progress), totalPts);
-
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.translate(-bounds.minX + padding, -bounds.minY + padding);
-
-    var mainIdx = Math.min(currentIdx, totalMainPts);
-    if (mainIdx >= 2) {
-      var partial = result.mainPath.slice(0, mainIdx);
-      drawPath(partial, '#000', 2.5);
-      if (currentIdx < totalMainPts) {
-        var tip = partial[partial.length - 1];
-        drawDot(tip[0], tip[1], 4, '#e00');
-      }
-    }
-
-    if (currentIdx > totalMainPts) {
-      var secProgress = currentIdx - totalMainPts;
-      for (var si = 0; si < result.secondaryStrokes.length; si++) {
-        var stroke = result.secondaryStrokes[si];
-        if (secProgress <= 0) break;
-        var n = Math.min(secProgress, stroke.length);
-        if (n >= 2) {
-          drawPath(stroke.slice(0, n), '#000', 2.5);
-        } else if (n === 1) {
-          drawDot(stroke[0][0], stroke[0][1], 2.5, '#000');
-        }
-        secProgress -= stroke.length;
-      }
-    }
-
-    ctx.restore();
-
-    if (currentIdx < totalPts) {
-      animFrame = requestAnimationFrame(frame);
+    if (drawIdx < primary.length) {
+      animationId = requestAnimationFrame(frame);
     } else {
-      infoEl.textContent = '"' + word + '" — done! ' + totalMainPts + ' main, ' + result.secondaryStrokes.length + ' deferred';
+      // Done with primary — draw deferred strokes
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 1.5;
+      for (const stroke of deferred) {
+        if (stroke.length < 2) {
+          if (stroke.length === 1) {
+            ctx.fillStyle = '#111';
+            ctx.beginPath();
+            ctx.arc(stroke[0][0], stroke[0][1], 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          continue;
+        }
+        ctx.beginPath();
+        ctx.moveTo(stroke[0][0], stroke[0][1]);
+        for (let i = 1; i < stroke.length; i++) ctx.lineTo(stroke[i][0], stroke[i][1]);
+        ctx.stroke();
+      }
+      animationId = null;
     }
   }
 
-  animFrame = requestAnimationFrame(frame);
-  infoEl.textContent = 'Animating "' + word + '"...';
+  frame();
 }
 
-drawBtn.addEventListener('click', function() { render(input.value); });
-animateBtn.addEventListener('click', function() { animate(input.value); });
-input.addEventListener('keydown', function(e) { if (e.key === 'Enter') render(input.value); });
+// Enter key triggers draw
+document.getElementById('wordInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') drawWord();
+});
 
-var params = new URLSearchParams(window.location.search);
-if (params.get('word')) input.value = params.get('word');
-
-render(input.value);
+initSpeedStops();
+drawWord();
 </script>
 </body>
 </html>
